@@ -1,11 +1,14 @@
 import { View, StyleSheet } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 
-// SCRUM-4: Task list UI to be implemented
-export default function TasksScreen() {
+// SCRUM-5: Task detail / edit UI to be implemented
+export default function TaskDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+
   return (
     <View style={styles.container}>
-      <ThemedText type="title">My Tasks</ThemedText>
+      <ThemedText type="title">Task {id}</ThemedText>
     </View>
   );
 }
