@@ -1,11 +1,11 @@
 import { View, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 
-// SCRUM-4: Task list UI to be implemented
-export default function TasksScreen() {
+// SCRUM-4: Add Task UI to be implemented
+export default function NewTaskScreen() {
   return (
     <View style={styles.container}>
-      <ThemedText type="title">My Tasks</ThemedText>
+      <ThemedText type="title">New Task</ThemedText>
     </View>
   );
 }
