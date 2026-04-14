@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// SCRUM-3: Token persistence helpers
 export const storage = {
   get: async <T>(key: string): Promise<T | null> => {
     const value = await AsyncStorage.getItem(key);
