@@ -6,6 +6,7 @@ import type { User, AuthCredentials, RegisterPayload } from '@/types/user';
 interface LoginResponse {
   access_token: string;
   token_type: string;
+  user?: RawUser;
 }
 
 interface RawUser {
@@ -29,7 +30,7 @@ function normalizeUser(raw: RawUser): User {
 // ── Auth API ──────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  /** POST /auth/login — returns { user, token } */
+  /** POST /auth/login — JSON body { email, password } */
   login: async (credentials: AuthCredentials): Promise<{ user: User; token: string }> => {
     const { data } = await apiClient.post<LoginResponse>('/auth/login', {
       email: credentials.email,
@@ -37,21 +38,23 @@ export const authApi = {
     });
     const token = data.access_token;
 
-    // Fetch user profile with the new token
+    // Use user from login response if available, otherwise fetch from /auth/me
+    if (data.user) {
+      return { user: normalizeUser(data.user), token };
+    }
+
     const { data: rawUser } = await apiClient.get<RawUser>('/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     });
-
     return { user: normalizeUser(rawUser), token };
   },
 
-  /** POST /auth/register — returns { user, token } */
+  /** POST /auth/register — JSON body { name, email, password } */
   register: async (payload: RegisterPayload): Promise<{ user: User; token: string }> => {
     await apiClient.post('/auth/register', {
+      name: payload.name,
       email: payload.email,
       password: payload.password,
-      username: payload.username,
-      full_name: payload.name,
     });
 
     // After register, log in to get a token

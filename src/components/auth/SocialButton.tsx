@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '../../constants/colors';
@@ -27,7 +27,7 @@ export function SocialButton({ provider, onPress }: SocialButtonProps) {
       activeOpacity={0.8}
     >
       {isGoogle ? (
-        <Image source={{ uri: GOOGLE_LOGO }} style={styles.googleLogo} />
+        <Image source={{ uri: GOOGLE_LOGO }} style={styles.googleLogo} resizeMode="contain" />
       ) : (
         <Ionicons name="logo-apple" size={20} color={COLORS.DARK_TEXT} />
       )}
@@ -61,7 +61,6 @@ const styles = StyleSheet.create({
   googleLogo: {
     width: 20,
     height: 20,
-    resizeMode: 'contain',
   },
 
   label: {

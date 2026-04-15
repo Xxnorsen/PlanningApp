@@ -25,15 +25,15 @@ export function ComingSoon({ title, icon, description }: ComingSoonProps) {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(float, { toValue: -12, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(float, { toValue: 0,   duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(float, { toValue: -12, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(float, { toValue: 0,   duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
       ])
     ).start();
 
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.08, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,    duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.08, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 1,    duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
       ])
     ).start();
   }, []);

@@ -8,7 +8,22 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.ts",
+      "**/__tests__/**/*.test.tsx"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": ["ts-jest", { "tsconfig": { "strict": false, "types": ["jest"] } }]
+    },
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    }
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
@@ -46,9 +61,14 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "http-proxy-middleware": "^3.0.5",
+    "jest": "^30.3.0",
+    "jest-expo": "^55.0.16",
+    "ts-jest": "^29.4.9",
     "typescript": "~5.9.2"
   },
   "private": true

@@ -27,11 +27,21 @@ apiClient.interceptors.request.use(async (config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message =
-      error?.response?.data?.detail ||
-      error?.response?.data?.message ||
-      error?.message ||
-      'Something went wrong';
+    const detail = error?.response?.data?.detail;
+    let message: string;
+
+    if (Array.isArray(detail)) {
+      // FastAPI validation errors: [{loc, msg, type}, ...]
+      message = detail.map((d: any) => d?.msg ?? String(d)).join(', ');
+    } else if (typeof detail === 'string') {
+      message = detail;
+    } else {
+      message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Something went wrong';
+    }
+
     return Promise.reject(new Error(message));
   }
 );

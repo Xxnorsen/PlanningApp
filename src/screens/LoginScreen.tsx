@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,8 +29,6 @@ const CURRENT_STEP = 1;
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
-
 function validateName(v: string) {
   if (!v.trim()) return 'Full name is required.';
   if (v.trim().length < 2) return 'Name must be at least 2 characters.';
@@ -40,11 +37,6 @@ function validateName(v: string) {
 function validateEmail(v: string) {
   if (!v.trim()) return 'Email is required.';
   if (!EMAIL_RE.test(v.trim())) return 'Enter a valid email address.';
-  return '';
-}
-function validateUsername(v: string) {
-  if (!v.trim()) return 'Username is required.';
-  if (!USERNAME_RE.test(v.trim())) return '3–20 chars, letters, numbers and _ only.';
   return '';
 }
 function validatePassword(v: string) {
@@ -81,17 +73,17 @@ const ruleStyles = StyleSheet.create({
 
 export function LoginScreen() {
   const router = useRouter();
-  const { register, isLoading, error } = useAuth();
+  const { register, isLoading } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   const [touched, setTouched] = useState({
-    name: false, email: false, username: false, password: false,
+    name: false, email: false, password: false,
   });
 
   // Live rule checks for password panel
@@ -110,26 +102,28 @@ export function LoginScreen() {
   // Inline errors (only after touch)
   const nameError = touched.name ? validateName(name) : '';
   const emailError = touched.email ? validateEmail(email) : '';
-  const usernameError = touched.username ? validateUsername(username) : '';
   const passwordError = touched.password ? validatePassword(password) : '';
 
   const touch = (field: keyof typeof touched) =>
     setTouched((p) => ({ ...p, [field]: true }));
 
   const handleRegister = async () => {
-    setTouched({ name: true, email: true, username: true, password: true });
+    setApiError('');
+    setTouched({ name: true, email: true, password: true });
 
-    if (validateName(name) || validateEmail(email) || validateUsername(username) || validatePassword(password)) return;
+    if (validateName(name) || validateEmail(email) || validatePassword(password)) return;
     if (!agreed) {
-      Alert.alert('Terms', 'Please agree to the Terms of Service.');
+      setApiError('Please agree to the Terms of Service to continue.');
       return;
     }
 
     try {
-      await register(name.trim(), email.trim(), password, username.trim());
+      await register(name.trim(), email.trim(), password);
       router.replace('/(tabs)');
-    } catch {
-      Alert.alert('Registration failed', error ?? 'Please try again.');
+    } catch (e: any) {
+      const msg = e?.message ?? 'Registration failed. Please try again.';
+      console.error('[Register error]', msg);
+      setApiError(msg);
     }
   };
 
@@ -171,10 +165,10 @@ export function LoginScreen() {
             <Text style={styles.cardSubtitle}>Tell us a little about yourself</Text>
 
             {/* API-level error banner */}
-            {error && !isLoading ? (
+            {apiError ? (
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle-outline" size={16} color="#fff" />
-                <Text style={styles.errorBannerText}>{error}</Text>
+                <Text style={styles.errorBannerText}>{apiError}</Text>
               </View>
             ) : null}
 
@@ -199,20 +193,6 @@ export function LoginScreen() {
               keyboardType="email-address"
               error={emailError}
               hint={!emailError && !email ? "We'll never share your email." : ''}
-            />
-
-            <InputField
-              label="Username"
-              placeholder="alexrivera"
-              iconName="at"
-              iconFamily="MaterialCommunityIcons"
-              rightIcon={username.length > 2 && !usernameError ? 'checkmark-circle' : undefined}
-              rightIconColor="#4CAF50"
-              value={username}
-              onChangeText={setUsername}
-              onBlur={() => touch('username')}
-              error={usernameError}
-              hint={!usernameError && !username ? '3–20 chars, letters, numbers and _.' : ''}
             />
 
             <InputField

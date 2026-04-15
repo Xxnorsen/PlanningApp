@@ -11,7 +11,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -46,11 +45,12 @@ function validatePassword(v: string) {
 
 export function SignInScreen() {
   const router = useRouter();
-  const { login, isLoading, error } = useAuth();
+  const { login, isLoading } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   // touched — only show errors after field has been interacted with
   const [touched, setTouched] = useState({ email: false, password: false });
@@ -59,7 +59,7 @@ export function SignInScreen() {
   const passwordError = touched.password ? validatePassword(password) : '';
 
   const handleLogin = async () => {
-    // Mark all as touched to surface any remaining errors
+    setApiError('');
     setTouched({ email: true, password: true });
 
     const eErr = validateEmail(email);
@@ -69,8 +69,10 @@ export function SignInScreen() {
     try {
       await login(email.trim(), password);
       router.replace('/(tabs)');
-    } catch {
-      Alert.alert('Sign in failed', error ?? 'Please check your credentials.');
+    } catch (e: any) {
+      const msg = e?.message ?? 'Please check your credentials.';
+      console.error('[Login error]', msg);
+      setApiError(msg);
     }
   };
 
@@ -124,10 +126,10 @@ export function SignInScreen() {
             <Text style={styles.cardSubtitle}>Enter your details below</Text>
 
             {/* API-level error banner */}
-            {error && !isLoading ? (
+            {apiError ? (
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle-outline" size={16} color="#fff" />
-                <Text style={styles.errorBannerText}>{error}</Text>
+                <Text style={styles.errorBannerText}>{apiError}</Text>
               </View>
             ) : null}
 
