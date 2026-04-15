@@ -16,8 +16,7 @@ export default function TasksScreen() {
     } catch (e) {
       console.error('[Logout error]', e);
     }
-    router.dismissAll();
-    router.replace('/');
+    router.replace('/(auth)/login');
   };
 
   return (

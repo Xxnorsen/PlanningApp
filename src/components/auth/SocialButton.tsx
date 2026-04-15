@@ -1,6 +1,6 @@
 import React from 'react';
-import { Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons, AntDesign } from '@expo/vector-icons';
 
 import { COLORS } from '../../constants/colors';
 import { FontFamily } from '../../constants/fonts';
@@ -11,9 +11,6 @@ interface SocialButtonProps {
   provider: 'google' | 'apple';
   onPress?: () => void;
 }
-
-const GOOGLE_LOGO =
-  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/768px-Google_%22G%22_logo.svg.png';
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -27,7 +24,7 @@ export function SocialButton({ provider, onPress }: SocialButtonProps) {
       activeOpacity={0.8}
     >
       {isGoogle ? (
-        <Image source={{ uri: GOOGLE_LOGO }} style={styles.googleLogo} resizeMode="contain" />
+        <AntDesign name="google" size={20} color="#4285F4" />
       ) : (
         <Ionicons name="logo-apple" size={20} color={COLORS.DARK_TEXT} />
       )}
