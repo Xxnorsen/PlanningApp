@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -159,8 +160,16 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, taskCount, delay
 
 const TaskDashboard: React.FC = () => {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, sessionSticker, rotateSticker } = useAuth();
   const { tasks, fetchAll, toggleComplete } = useTasks();
+
+  const stickerSources = [
+    require('@/assets/stickers/cat1.png'),
+    require('@/assets/stickers/cat2.png'),
+    require('@/assets/stickers/cat3.png'),
+    require('@/assets/stickers/halloween.png'),
+  ];
+  const stickerSource = stickerSources[sessionSticker % stickerSources.length];
   const { categories, fetchAll: fetchCategories } = useCategories();
 
   const handleToggleDone = async (task: Task) => {
@@ -196,10 +205,13 @@ const TaskDashboard: React.FC = () => {
         progressApi.get().catch(() => null),
       ]);
       setProgress(p);
+      if (isRefresh) {
+        await rotateSticker().catch(() => {});
+      }
     } finally {
       if (isRefresh) setRefreshing(false); else setLoading(false);
     }
-  }, [fetchAll, fetchCategories]);
+  }, [fetchAll, fetchCategories, rotateSticker]);
 
   useFocusEffect(
     useCallback(() => {
@@ -332,6 +344,13 @@ const TaskDashboard: React.FC = () => {
         <View style={styles.card}>
           <View style={styles.handle} />
 
+          {/* Session sticker — rotates on each login */}
+          <Image
+            source={stickerSource}
+            style={styles.sessionSticker}
+            resizeMode="contain"
+          />
+
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>In Progress</Text>
             <View style={styles.sectionBadge}>
@@ -411,7 +430,7 @@ const TaskDashboard: React.FC = () => {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
   scroll: { flex: 1, backgroundColor: COLORS.BACKGROUND },
-  scrollContent: { flexGrow: 1, paddingBottom: 100 },
+  scrollContent: { flexGrow: 1 },
 
   loaderWrap: {
     flex: 1,
@@ -536,19 +555,28 @@ const styles = StyleSheet.create({
   },
 
   card: {
+    flexGrow: 1,
     backgroundColor: COLORS.CARD,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -28,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 28,
+    paddingBottom: 120,
     minHeight: 400,
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: COLORS.INPUT_BORDER,
     alignSelf: 'center', marginBottom: 20,
+  },
+  sessionSticker: {
+    position: 'absolute',
+    top: -70,
+    right: 12,
+    width: 110,
+    height: 110,
+    zIndex: 5,
   },
 
   sectionHeader: {
