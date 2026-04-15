@@ -12,5 +12,4 @@ export interface AuthCredentials {
 
 export interface RegisterPayload extends AuthCredentials {
   name: string;
-  username: string;
 }

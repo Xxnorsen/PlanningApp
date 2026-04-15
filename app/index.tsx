@@ -27,24 +27,26 @@ export default function WelcomeScreen() {
           toValue: -18,
           duration: 1800,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(floatAnim, {
           toValue: 0,
           duration: 1800,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ])
     ).start();
   }, []);
 
-  // Already logged in → skip intro
+  // Auto-redirect only when the app first loads from storage (isLoading: true → false).
+  // When coming back here via logout, isLoading is already false on mount so this never triggers.
+  const mountedWhileLoading = useRef(isLoading);
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (mountedWhileLoading.current && !isLoading && isAuthenticated) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isLoading, isAuthenticated]);
 
   if (isLoading) {
     return (
