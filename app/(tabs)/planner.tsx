@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,84 +7,91 @@ import {
   StyleSheet,
   Modal,
   StatusBar,
-  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+import { COLORS } from '../../src/constants/colors';
+import { FontFamily } from '../../src/constants/fonts';
+import { plannerApi } from '@/services/api/planner';
+import { tasksApi } from '@/services/api/tasks';
+import { showApiErrorAlert, toApiError } from '@/services/api/errors';
+import type { Task, TaskPriority } from '@/types/task';
+import { useCategories } from '@/context/category-context';
 
-type Status = 'Done' | 'In Progress' | 'To-do';
 type Filter = 'All' | 'To do' | 'In Progress' | 'Completed';
-
-interface Task {
-  id: string;
-  project: string;
-  title: string;
-  time: string;
-  status: Status;
-  emoji: string;
-}
-
-// ── Mock Data ────────────────────────────────────────────────────────────────
-
-const INITIAL_TASKS: Task[] = [
-  {
-    id: '1',
-    project: 'Grocery shopping app design',
-    title: 'Market Research',
-    time: '10:00 AM',
-    status: 'Done',
-    emoji: '🛒',
-  },
-  {
-    id: '2',
-    project: 'Grocery shopping app design',
-    title: 'Competitive Analysis',
-    time: '12:00 PM',
-    status: 'In Progress',
-    emoji: '🛒',
-  },
-  {
-    id: '3',
-    project: 'Uber Eats redesign challange',
-    title: 'Create Low-fidelity Wireframe',
-    time: '07:00 PM',
-    status: 'To-do',
-    emoji: '🍔',
-  },
-];
-
-const DAYS = [
-  { date: 23, day: 'Fri', month: 'May' },
-  { date: 24, day: 'Sat', month: 'May' },
-  { date: 25, day: 'Sun', month: 'May' },
-  { date: 26, day: 'Mon', month: 'May' },
-  { date: 27, day: 'Tue', month: 'May' },
-];
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const FILTERS: Filter[] = ['All', 'To do', 'In Progress', 'Completed'];
 
-// ── Status Badge ─────────────────────────────────────────────────────────────
+// ── Date helpers ────────────────────────────────────────────────────────────
 
-const statusStyle: Record<Status, { bg: string; text: string }> = {
-  Done: { bg: '#E8F5E9', text: '#43A047' },
-  'In Progress': { bg: '#FFF3E0', text: '#FB8C00' },
-  'To-do': { bg: '#E3F2FD', text: '#1E88E5' },
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const startOfDay = (d: Date) => {
+  const n = new Date(d);
+  n.setHours(0, 0, 0, 0);
+  return n;
 };
 
-const StatusBadge = ({ status }: { status: Status }) => {
-  const s = statusStyle[status];
-  return (
-    <View style={[styles.badge, { backgroundColor: s.bg }]}>
-      <Text style={[styles.badgeText, { color: s.text }]}>{status}</Text>
-    </View>
-  );
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const toIsoDate = (d: Date) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 };
 
-// ── Custom Delete Modal ───────────────────────────────────────────────────────
+/** 7 days: 2 before today, today, 4 after */
+const buildDayStrip = (anchor: Date) => {
+  const anchorStart = startOfDay(anchor);
+  return Array.from({ length: 7 }, (_, i) => {
+    const offset = i - 2;
+    const d = new Date(anchorStart.getTime() + offset * MS_PER_DAY);
+    return d;
+  });
+};
+
+// ── Priority / status helpers ──────────────────────────────────────────────
+
+const priorityIcon: Record<TaskPriority, { icon: IoniconName; bg: string; color: string }> = {
+  high:   { icon: 'flame',           bg: '#FFECEE', color: '#FF4757' },
+  medium: { icon: 'remove-circle',   bg: '#FFF4E5', color: '#FFA502' },
+  low:    { icon: 'leaf',            bg: '#E8F9EE', color: '#2ED573' },
+};
+
+const statusStyle = {
+  Done:         { bg: '#E8F9EE', text: '#2ED573' },
+  'In Progress':{ bg: '#FFF4E5', text: '#FFA502' },
+  'To-do':      { bg: COLORS.INPUT_BG, text: COLORS.BACKGROUND },
+};
+
+function taskStatusLabel(t: Task): keyof typeof statusStyle {
+  if (t.status === 'completed') return 'Done';
+  if (t.dueDate && new Date(t.dueDate) < new Date()) return 'In Progress';
+  return 'To-do';
+}
+
+function formatTime(iso?: string): string {
+  if (!iso) return 'No time';
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Delete modal ────────────────────────────────────────────────────────────
+
+const CAT_SIZE = 140;
+const CAT_OVERLAP = 70;
 
 interface DeleteModalProps {
   visible: boolean;
@@ -94,34 +101,22 @@ interface DeleteModalProps {
 }
 
 const DeleteModal = ({ visible, onClose, onConfirm, taskTitle }: DeleteModalProps) => (
-  <Modal
-    transparent={true}
-    visible={visible}
-    animationType="fade"
-    onRequestClose={onClose}
-  >
+  <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
     <View style={styles.modalOverlay}>
-      {/* Wrapper that positions cat above the card */}
       <View style={styles.modalWrapper}>
-
-        {/* Cat video floats above the card, centered */}
         <View style={styles.catFloatContainer} pointerEvents="none">
           <Image
-  source={require('@/assets/animations/Blinking Kitty.gif')}
-  style={styles.catVideo}
-  contentFit="contain"
-/>
+            source={require('@/assets/animations/Blinking Kitty.gif')}
+            style={styles.catVideo}
+            contentFit="contain"
+          />
         </View>
-
-        {/* Modal Card — sits below the cat */}
         <View style={styles.modalCard}>
-          {/* Extra top padding so text doesn't crowd the cat's feet */}
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Delete Task?</Text>
             <Text style={styles.modalMessage}>
               Are you sure you want to delete "{taskTitle}"?
             </Text>
-
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalBtn, styles.modalCancelBtn]}
@@ -145,74 +140,143 @@ const DeleteModal = ({ visible, onClose, onConfirm, taskTitle }: DeleteModalProp
   </Modal>
 );
 
-// ── Task Card ────────────────────────────────────────────────────────────────
+// ── Task Card ───────────────────────────────────────────────────────────────
 
 interface TaskCardProps {
   task: Task;
+  categoryName?: string;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onToggle: (task: Task) => void;
 }
 
-const TaskCard = ({ task, onEdit, onDelete }: TaskCardProps) => (
-  <View style={styles.card}>
-    <View style={styles.cardHeader}>
-      <Text style={styles.projectName}>{task.project}</Text>
-      <View style={styles.emojiCircle}>
-        <Text style={styles.emoji}>{task.emoji}</Text>
-      </View>
-    </View>
-    <Text style={styles.taskTitle}>{task.title}</Text>
-    <View style={styles.cardMeta}>
-      <View style={styles.timeRow}>
-        <Text style={styles.clockIcon}>🕐</Text>
-        <Text style={styles.timeText}>{task.time}</Text>
-      </View>
-      <StatusBadge status={task.status} />
-    </View>
-    <View style={styles.cardActions}>
-      <TouchableOpacity
-        style={styles.editBtn}
-        onPress={() => onEdit(task.id)}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.editBtnText}>Edit</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.deleteBtn}
-        onPress={() => onDelete(task.id)}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.deleteBtnText}>Delete</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
+const TaskCard = ({ task, categoryName, onEdit, onDelete, onToggle }: TaskCardProps) => {
+  const status = taskStatusLabel(task);
+  const s = statusStyle[status];
+  const p = priorityIcon[task.priority];
 
-// ── Main Screen ──────────────────────────────────────────────────────────────
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.projectName}>{categoryName ?? 'General'}</Text>
+        <View style={[styles.iconCircle, { backgroundColor: p.bg }]}>
+          <Ionicons name={p.icon} size={16} color={p.color} />
+        </View>
+      </View>
+      <Text style={styles.taskTitle} numberOfLines={2}>{task.title}</Text>
+      {task.description ? (
+        <Text style={styles.taskDesc} numberOfLines={2}>{task.description}</Text>
+      ) : null}
+      <View style={styles.cardMeta}>
+        <View style={styles.timeRow}>
+          <Ionicons name="time-outline" size={14} color={COLORS.MUTED_ON_CARD} />
+          <Text style={styles.timeText}>{formatTime(task.dueDate)}</Text>
+        </View>
+        <View style={[styles.badge, { backgroundColor: s.bg }]}>
+          <Text style={[styles.badgeText, { color: s.text }]}>{status}</Text>
+        </View>
+      </View>
+      <View style={styles.cardActions}>
+        <TouchableOpacity
+          style={styles.completeBtn}
+          onPress={() => onToggle(task)}
+          activeOpacity={0.85}
+        >
+          <Ionicons
+            name={task.status === 'completed' ? 'refresh-outline' : 'checkmark'}
+            size={16}
+            color={COLORS.DARK_TEXT}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => onEdit(task.id)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.editBtnText}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={() => onDelete(task.id)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.deleteBtnText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+// ── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function PlannerScreen() {
   const router = useRouter();
-  const [selectedDay, setSelectedDay] = useState(25);
+  const { categories, fetchAll: fetchCategories } = useCategories();
+
+  const today = useMemo(() => startOfDay(new Date()), []);
+  const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const [anchorDate, setAnchorDate] = useState<Date>(today);
+  const days = useMemo(() => buildDayStrip(anchorDate), [anchorDate]);
+
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
+  const loadDay = useCallback(async (date: Date, isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    setError('');
+    try {
+      const plan = await plannerApi.getDaily(toIsoDate(date));
+      setTasks(plan.tasks);
+    } catch (e) {
+      const err = toApiError(e);
+      setError(err.message);
+      // Only alert on network/server errors; inline banner is enough otherwise
+      if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
+        showApiErrorAlert(err);
+      }
+      setTasks([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories().catch(() => {});
+  }, [fetchCategories]);
+
+  // Reload when screen gains focus (e.g. after edit/create) and on date change
+  useFocusEffect(
+    useCallback(() => {
+      loadDay(selectedDate);
+    }, [selectedDate, loadDay])
+  );
 
   const handleEdit = (id: string) => {
     router.push(`/EditProject?id=${id}`);
   };
 
   const handleDelete = (id: string) => {
-    const task = tasks.find(t => t.id === id);
-    if (task) {
-      setTaskToDelete(id);
+    const t = tasks.find(x => x.id === id);
+    if (t) {
+      setTaskToDelete(t);
       setDeleteModalVisible(true);
     }
   };
 
-  const confirmDelete = () => {
-    if (taskToDelete) {
-      setTasks(prev => prev.filter(t => t.id !== taskToDelete));
+  const confirmDelete = async () => {
+    if (!taskToDelete) return;
+    try {
+      await tasksApi.delete(taskToDelete.id);
+      setTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
+    } catch (e) {
+      showApiErrorAlert(e);
+    } finally {
       setTaskToDelete(null);
       setDeleteModalVisible(false);
     }
@@ -223,235 +287,351 @@ export default function PlannerScreen() {
     setDeleteModalVisible(false);
   };
 
+  const handleToggle = async (task: Task) => {
+    const nextStatus = task.status === 'completed' ? 'pending' : 'completed';
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: nextStatus } : t));
+    try {
+      await tasksApi.toggleComplete(task);
+    } catch (e) {
+      setTasks(prev => prev.map(t => t.id === task.id ? task : t));
+      showApiErrorAlert(e);
+    }
+  };
+
+  const categoryMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    categories.forEach(c => { m[c.id] = c.name; });
+    return m;
+  }, [categories]);
+
   const filteredTasks = tasks.filter(task => {
+    const label = taskStatusLabel(task);
     if (activeFilter === 'All') return true;
-    if (activeFilter === 'To do') return task.status === 'To-do';
-    if (activeFilter === 'In Progress') return task.status === 'In Progress';
-    if (activeFilter === 'Completed') return task.status === 'Done';
+    if (activeFilter === 'To do') return label === 'To-do';
+    if (activeFilter === 'In Progress') return label === 'In Progress';
+    if (activeFilter === 'Completed') return label === 'Done';
     return true;
   });
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F7F8FF" />
+  const headerLabel = isSameDay(selectedDate, today)
+    ? "Today's Tasks"
+    : `${WEEKDAYS[selectedDate.getDay()]}'s Tasks`;
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Today's Tasks</Text>
-        <TouchableOpacity style={styles.bellButton}>
-          <Text style={styles.bellIcon}>🔔</Text>
-        </TouchableOpacity>
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.BACKGROUND} />
+
+      {/* ── Purple hero ── */}
+      <View style={styles.hero}>
+        <View style={styles.circleLarge} />
+        <View style={styles.circleMedium} />
+        <View style={styles.circleDot} />
+
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => {
+              setAnchorDate(today);
+              setSelectedDate(today);
+            }}
+          >
+            <Ionicons name="today-outline" size={18} color={COLORS.DARK_TEXT} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{headerLabel}</Text>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => loadDay(selectedDate, true)}>
+            <Ionicons name="refresh-outline" size={18} color={COLORS.DARK_TEXT} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.heroDate}>
+          {MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+        </Text>
+
+        {/* Calendar strip */}
+        <View style={styles.calendarStrip}>
+          {days.map(d => {
+            const isSelected = isSameDay(d, selectedDate);
+            const isTodayCell = isSameDay(d, today);
+            return (
+              <TouchableOpacity
+                key={d.toISOString()}
+                onPress={() => setSelectedDate(d)}
+                style={[
+                  styles.dayItem,
+                  isSelected && styles.dayItemSelected,
+                  !isSelected && isTodayCell && styles.dayItemToday,
+                ]}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.dayMonth, isSelected && styles.dayTextSelected]}>
+                  {MONTHS[d.getMonth()]}
+                </Text>
+                <Text style={[styles.dayNumber, isSelected && styles.dayTextSelected]}>
+                  {d.getDate()}
+                </Text>
+                <Text style={[styles.dayName, isSelected && styles.dayTextSelected]}>
+                  {WEEKDAYS[d.getDay()].slice(0, 3)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
-      {/* Calendar Strip */}
-      <View style={styles.calendarStrip}>
-        {DAYS.map(d => {
-          const isSelected = d.date === selectedDay;
-          return (
+      {/* ── White card ── */}
+      <View style={styles.card2}>
+        <View style={styles.handle} />
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}
+        >
+          {FILTERS.map(f => (
             <TouchableOpacity
-              key={d.date}
-              onPress={() => setSelectedDay(d.date)}
-              style={[styles.dayItem, isSelected && styles.dayItemSelected]}
+              key={f}
+              onPress={() => setActiveFilter(f)}
+              style={[styles.filterChip, activeFilter === f && styles.filterChipActive]}
               activeOpacity={0.8}
             >
-              <Text style={[styles.dayMonth, isSelected && styles.dayTextSelected]}>
-                {d.month}
-              </Text>
-              <Text style={[styles.dayNumber, isSelected && styles.dayTextSelected]}>
-                {d.date}
-              </Text>
-              <Text style={[styles.dayName, isSelected && styles.dayTextSelected]}>
-                {d.day}
+              <Text
+                style={[styles.filterText, activeFilter === f && styles.filterTextActive]}
+              >
+                {f}
               </Text>
             </TouchableOpacity>
-          );
-        })}
-      </View>
+          ))}
+        </ScrollView>
 
-      {/* Filter Tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        {FILTERS.map(f => (
-          <TouchableOpacity
-            key={f}
-            onPress={() => setActiveFilter(f)}
-            style={[styles.filterChip, activeFilter === f && styles.filterChipActive]}
-            activeOpacity={0.8}
-          >
-            <Text
-              style={[styles.filterText, activeFilter === f && styles.filterTextActive]}
-            >
-              {f}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Task List */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.taskList}
-      >
-        {filteredTasks.length === 0 ? (
+        {loading ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No tasks found</Text>
+            <ActivityIndicator color={COLORS.BACKGROUND} size="large" />
+          </View>
+        ) : error ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="cloud-offline-outline" size={40} color={COLORS.INPUT_BORDER} />
+            <Text style={styles.emptyText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryBtn}
+              onPress={() => loadDay(selectedDate)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          filteredTasks.map(task => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          ))
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.taskList}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => loadDay(selectedDate, true)}
+                tintColor={COLORS.BACKGROUND}
+              />
+            }
+          >
+            {filteredTasks.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons
+                  name="checkmark-done-circle-outline"
+                  size={48}
+                  color={COLORS.INPUT_BORDER}
+                />
+                <Text style={styles.emptyText}>No tasks for this day.</Text>
+                <TouchableOpacity
+                  style={styles.retryBtn}
+                  onPress={() => router.push('/(tabs)/add-task')}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.retryText}>Add Task</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              filteredTasks.map(task => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  categoryName={task.categoryId ? categoryMap[task.categoryId] : undefined}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onToggle={handleToggle}
+                />
+              ))
+            )}
+          </ScrollView>
         )}
-      </ScrollView>
+      </View>
 
-      {/* Delete Confirmation Modal */}
       <DeleteModal
         visible={deleteModalVisible}
         onClose={cancelDelete}
         onConfirm={confirmDelete}
-        taskTitle={tasks.find(t => t.id === taskToDelete)?.title || ''}
+        taskTitle={taskToDelete?.title ?? ''}
       />
     </SafeAreaView>
   );
 }
 
-// ── Styles ───────────────────────────────────────────────────────────────────
-
-const PURPLE = '#6C63FF';
-const RED = '#E53935';
-const CAT_SIZE = 140; // height of the cat video that peeks above the card
-const CAT_OVERLAP = 70; // how many px of the cat overlap INTO the card top
+// ── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#F7F8FF',
+  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+
+  hero: {
+    backgroundColor: COLORS.BACKGROUND,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    position: 'relative',
+  },
+  circleLarge: {
+    position: 'absolute',
+    width: 140, height: 140, borderRadius: 70,
+    backgroundColor: COLORS.CIRCLE_LIGHT,
+    top: -30, left: -40, opacity: 0.6,
+  },
+  circleMedium: {
+    position: 'absolute',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: COLORS.CIRCLE_LIGHTER,
+    top: 10, right: -20, opacity: 0.6,
+  },
+  circleDot: {
+    position: 'absolute',
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: COLORS.LIME,
+    top: 30, right: '40%',
   },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 10,
+    zIndex: 1,
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  headerBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: COLORS.LIME,
+    alignItems: 'center', justifyContent: 'center',
   },
-  backArrow: { fontSize: 18, color: '#333' },
   headerTitle: {
+    fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A2E',
+    color: COLORS.WHITE_TEXT,
     letterSpacing: 0.3,
   },
-  bellButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  heroDate: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 13,
+    color: COLORS.MUTED_ON_DARK,
+    marginTop: 8,
+    marginLeft: 2,
+    zIndex: 1,
   },
-  bellIcon: { fontSize: 18 },
 
-  // Calendar
   calendarStrip: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    justifyContent: 'space-between',
+    marginTop: 16,
+    zIndex: 1,
   },
   dayItem: {
+    flex: 1,
+    marginHorizontal: 3,
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
     borderRadius: 16,
-    minWidth: 52,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  dayItemToday: {
+    borderColor: COLORS.LIME,
+    borderWidth: 1.5,
   },
   dayItemSelected: {
-    backgroundColor: PURPLE,
-    shadowColor: PURPLE,
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    backgroundColor: COLORS.LIME,
+    borderColor: COLORS.LIME,
   },
-  dayMonth: { fontSize: 11, color: '#999', fontWeight: '500' },
-  dayNumber: { fontSize: 22, fontWeight: '800', color: '#1A1A2E', marginVertical: 2 },
-  dayName: { fontSize: 11, color: '#999', fontWeight: '500' },
-  dayTextSelected: { color: '#fff' },
+  dayMonth: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 10,
+    color: COLORS.MUTED_ON_DARK,
+  },
+  dayNumber: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 18,
+    color: COLORS.WHITE_TEXT,
+    marginVertical: 2,
+  },
+  dayName: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 10,
+    color: COLORS.MUTED_ON_DARK,
+  },
+  dayTextSelected: { color: COLORS.DARK_TEXT },
 
-  // Filters
+  card2: {
+    flex: 1,
+    backgroundColor: COLORS.CARD,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -28,
+    paddingTop: 16,
+  },
+  handle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: COLORS.INPUT_BORDER,
+    alignSelf: 'center', marginBottom: 16,
+  },
+
   filterScroll: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     gap: 8,
     flexDirection: 'row',
-    marginBottom:12
+    marginBottom: 6,
   },
   filterChip: {
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.INPUT_BG,
     borderWidth: 1.5,
-    borderColor: '#E8E8F0',
+    borderColor: COLORS.INPUT_BORDER,
     marginRight: 8,
-    height: 40,
+    height: 38,
+    justifyContent: 'center',
   },
   filterChipActive: {
-    backgroundColor: PURPLE,
-    borderColor: PURPLE,
+    backgroundColor: COLORS.BACKGROUND,
+    borderColor: COLORS.BACKGROUND,
   },
-  filterText: { fontSize: 13, fontWeight: '600', color: '#888' },
-  filterTextActive: { color: '#fff' },
+  filterText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 13,
+    color: COLORS.MUTED_ON_CARD,
+  },
+  filterTextActive: { color: COLORS.WHITE_TEXT },
 
-  // Task List
   taskList: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 100,
     gap: 14,
-    marginTop:14
   },
 
-  // Card
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.CARD,
     borderRadius: 20,
     padding: 18,
-    shadowColor: '#6C63FF',
-    shadowOpacity: 0.07,
+    borderWidth: 1,
+    borderColor: COLORS.INPUT_BORDER,
+    shadowColor: COLORS.BACKGROUND,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    marginBottom: 5,
-    marginTop:14
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -459,158 +639,163 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  projectName: { fontSize: 12, color: '#9E9EB5', fontWeight: '500' },
-  emojiCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#F3F0FF',
+  projectName: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 12,
+    color: COLORS.MUTED_ON_CARD,
+    flex: 1,
+  },
+  iconCircle: {
+    width: 34, height: 34, borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emoji: { fontSize: 16 },
   taskTitle: {
+    fontFamily: FontFamily.BOLD,
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1A2E',
+    color: COLORS.DARK_TEXT,
+    marginBottom: 4,
+  },
+  taskDesc: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 13,
+    color: COLORS.MUTED_ON_CARD,
     marginBottom: 10,
+    lineHeight: 18,
   },
   cardMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 14,
+    marginTop: 4,
   },
-  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  clockIcon: { fontSize: 13 },
-  timeText: { fontSize: 13, color: '#9E9EB5', fontWeight: '500', marginLeft: 4 },
-
-  // Badge
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  timeText: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 13,
+    color: COLORS.MUTED_ON_CARD,
   },
-  badgeText: { fontSize: 11, fontWeight: '700' },
 
-  // Buttons
-  cardActions: { flexDirection: 'row', gap: 10 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { fontFamily: FontFamily.BOLD, fontSize: 11 },
+
+  cardActions: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  completeBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: COLORS.LIME,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   editBtn: {
     flex: 1,
-    backgroundColor: PURPLE,
+    backgroundColor: COLORS.BACKGROUND,
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',
-    shadowColor: PURPLE,
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
-  editBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  editBtnText: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.WHITE_TEXT,
+    fontSize: 14,
+  },
   deleteBtn: {
     flex: 1,
-    backgroundColor: RED,
+    backgroundColor: COLORS.INPUT_BG,
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',
-    shadowColor: RED,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.INPUT_BORDER,
   },
-  deleteBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  deleteBtnText: {
+    fontFamily: FontFamily.BOLD,
+    color: '#FF4757',
+    fontSize: 14,
+  },
 
-  // Empty State
-  emptyState: { alignItems: 'center', paddingVertical: 60 },
-  emptyText: { fontSize: 15, color: '#aaa', fontWeight: '500' },
+  emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12, paddingHorizontal: 20 },
+  emptyText: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 15,
+    color: COLORS.MUTED_ON_CARD,
+    textAlign: 'center',
+  },
+  retryBtn: {
+    marginTop: 6,
+    backgroundColor: COLORS.LIME,
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+  },
+  retryText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 14,
+    color: COLORS.DARK_TEXT,
+  },
 
-  // ── Modal ──────────────────────────────────────────────────────────────────
-
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: 'rgba(26,26,46,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-
-  /**
-   * Outer wrapper — no background, just used to stack the cat on top of the card.
-   * We use a negative marginBottom on the cat so it visually sits on the card edge.
-   */
   modalWrapper: {
     width: '100%',
     maxWidth: 320,
     alignItems: 'center',
-    
   },
-
-  /**
-   * The cat floats here. It renders ABOVE the card in z-order because it comes
-   * first in JSX and we pull it down via a negative bottom margin so its feet
-   * land exactly on the card's top edge.
-   *
-   * backgroundColor: 'transparent' + no overflow:hidden = the alpha channel
-   * of the .webm shows through on both iOS and Android.
-   */
   catFloatContainer: {
     width: CAT_SIZE,
     height: CAT_SIZE,
     backgroundColor: 'transparent',
     marginBottom: -CAT_OVERLAP,
-   left:100,
-   
+    left: 100,
     zIndex: 10,
   },
-
   catVideo: {
     width: '100%',
     height: '100%',
     backgroundColor: 'transparent',
   },
-
   modalCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.CARD,
     borderRadius: 24,
     width: '100%',
-    shadowColor: '#6C63FF',
+    shadowColor: COLORS.BACKGROUND,
     shadowOpacity: 0.18,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 10 },
     elevation: 10,
     overflow: 'visible',
-    zIndex:12
+    zIndex: 12,
   },
-
   modalContent: {
     alignItems: 'center',
-    // Extra top padding gives breathing room below the cat's feet
     paddingTop: CAT_OVERLAP + 12,
     paddingHorizontal: 20,
     paddingBottom: 24,
   },
-
   modalTitle: {
+    fontFamily: FontFamily.BOLD,
     fontSize: 20,
-    fontWeight: '800',
-    color: '#1A1A2E',
+    color: COLORS.DARK_TEXT,
     marginBottom: 8,
     textAlign: 'center',
   },
   modalMessage: {
+    fontFamily: FontFamily.REGULAR,
     fontSize: 14,
-    color: '#666',
+    color: COLORS.MUTED_ON_CARD,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
   },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
+  modalActions: { flexDirection: 'row', gap: 12, width: '100%' },
   modalBtn: {
     flex: 1,
     borderRadius: 14,
@@ -618,26 +803,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCancelBtn: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.INPUT_BG,
     borderWidth: 1.5,
-    borderColor: '#E8E8F0',
+    borderColor: COLORS.INPUT_BORDER,
   },
-  modalDeleteBtn: {
-    backgroundColor: RED,
-    shadowColor: RED,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
+  modalDeleteBtn: { backgroundColor: '#FF4757' },
   modalCancelBtnText: {
-    color: '#666',
-    fontWeight: '700',
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.MUTED_ON_CARD,
     fontSize: 15,
   },
   modalDeleteBtnText: {
-    color: '#fff',
-    fontWeight: '700',
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.WHITE_TEXT,
     fontSize: 15,
   },
 });

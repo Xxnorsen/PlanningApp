@@ -10,6 +10,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS } from '../../src/constants/colors';
+import { FontFamily } from '../../src/constants/fonts';
 
 interface ComingSoonProps {
   title: string;
@@ -48,7 +50,7 @@ export function ComingSoon({ title, icon, description }: ComingSoonProps) {
       <View style={styles.content}>
         {/* Floating icon bubble */}
         <Animated.View style={[styles.iconBubble, { transform: [{ translateY: float }, { scale: pulse }] }]}>
-          <Ionicons name={icon as any} size={52} color="#4A4AE8" />
+          <Ionicons name={icon as any} size={52} color={COLORS.BACKGROUND} />
         </Animated.View>
 
         {/* Badge */}
@@ -63,7 +65,7 @@ export function ComingSoon({ title, icon, description }: ComingSoonProps) {
 
         {/* Back to home */}
         <TouchableOpacity style={styles.button} onPress={() => router.replace('/(tabs)')} activeOpacity={0.85}>
-          <Ionicons name="home-outline" size={18} color="#1A1A1A" />
+          <Ionicons name="home-outline" size={18} color={COLORS.DARK_TEXT} />
           <Text style={styles.buttonText}>Back to Home</Text>
         </TouchableOpacity>
       </View>
@@ -72,12 +74,12 @@ export function ComingSoon({ title, icon, description }: ComingSoonProps) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#4A4AE8' },
+  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
 
   circle: { position: 'absolute', borderRadius: 999 },
-  c1: { width: 180, height: 180, backgroundColor: '#6B6BFF', top: -40, left: -50, opacity: 0.6 },
-  c2: { width: 120, height: 120, backgroundColor: '#9B9BFF', bottom: 120, right: -30, opacity: 0.5 },
-  c3: { width: 20,  height: 20,  backgroundColor: '#C8FF3E', top: 160, right: 60 },
+  c1: { width: 180, height: 180, backgroundColor: COLORS.CIRCLE_LIGHT, top: -40, left: -50, opacity: 0.6 },
+  c2: { width: 120, height: 120, backgroundColor: COLORS.CIRCLE_LIGHTER, bottom: 120, right: -30, opacity: 0.5 },
+  c3: { width: 20, height: 20, backgroundColor: COLORS.LIME, top: 160, right: 60 },
 
   content: {
     flex: 1,
@@ -90,7 +92,7 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 32,
-    backgroundColor: '#C8FF3E',
+    backgroundColor: COLORS.LIME,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 28,
@@ -111,25 +113,25 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.25)',
   },
   badgeText: {
-    fontFamily: 'Fredoka_700Bold',
+    fontFamily: FontFamily.BOLD,
     fontSize: 12,
-    color: '#C8FF3E',
+    color: COLORS.LIME,
     letterSpacing: 2,
   },
 
   title: {
-    fontFamily: 'Fredoka_700Bold',
+    fontFamily: FontFamily.BOLD,
     fontSize: 36,
-    color: '#C8FF3E',
+    color: COLORS.LIME,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 12,
     textAlign: 'center',
   },
   description: {
-    fontFamily: 'Fredoka_400Regular',
+    fontFamily: FontFamily.REGULAR,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.75)',
+    color: COLORS.MUTED_ON_DARK,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 40,
@@ -139,7 +141,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#C8FF3E',
+    backgroundColor: COLORS.LIME,
     borderRadius: 30,
     paddingVertical: 14,
     paddingHorizontal: 28,
@@ -150,8 +152,8 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   buttonText: {
-    fontFamily: 'Fredoka_700Bold',
+    fontFamily: FontFamily.BOLD,
     fontSize: 16,
-    color: '#1A1A1A',
+    color: COLORS.DARK_TEXT,
   },
 });

@@ -1,19 +1,12 @@
-import { View, StyleSheet } from 'react-native';
-import { ThemedText } from '@/components/themed-text';
+import { ComingSoon } from '@/components/ui/coming-soon';
 
 // SCRUM-6: Categories module to be implemented
 export default function CategoriesScreen() {
   return (
-    <View style={styles.container}>
-      <ThemedText type="title">Categories</ThemedText>
-    </View>
+    <ComingSoon
+      title="Categories"
+      icon="grid-outline"
+      description="Organize your tasks into categories. Colorful tags are on the way!"
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

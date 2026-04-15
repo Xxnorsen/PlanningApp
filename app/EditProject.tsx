@@ -1,330 +1,923 @@
-import React, { useState, useRef } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  ScrollView, 
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   Animated,
   LayoutAnimation,
-  UIManager
+  UIManager,
+  ActivityIndicator,
+  Alert,
+  Modal,
 } from 'react-native';
-import { 
-  ChevronLeft, 
-  Bell, 
-  Briefcase, 
-  Calendar, 
-  Edit3, 
-  ChevronDown,
-  CheckCircle2,
-  Clock,
-  ListTodo
-} from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-// import DateTimePicker from '@react-native-community/datetimepicker';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
-// Enable LayoutAnimation for Android
+import { COLORS } from '../src/constants/colors';
+import { FontFamily } from '../src/constants/fonts';
+import { useTasks } from '@/context/task-context';
+import { useCategories } from '@/context/category-context';
+import { tasksApi } from '@/services/api/tasks';
+import { showApiErrorAlert, toApiError } from '@/services/api/errors';
+import type { Task, TaskPriority } from '@/types/task';
+
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const EditProjectScreen = () => {
-  const router = useRouter();
-  
-  const [project, setProject] = useState({
-    group: 'Work',
-    name: 'Grocery Shopping App',
-    description: 'This application is designed for super shops. By using this application they can enlist all their products in one place and can deliver. Customers will get a one-stop solution for their daily shopping.',
-    startDate: new Date(2022, 4, 1), // May 1, 2022
-    endDate: new Date(2022, 5, 30),   // June 30, 2022
-    status: 'Completed'
-  });
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showPicker, setShowPicker] = useState<'start' | 'end' | null>(null);
+const PRIORITY_OPTIONS: { value: TaskPriority; label: string; color: string; icon: IoniconName }[] = [
+  { value: 'low',    label: 'Low',    color: '#2ED573', icon: 'chevron-down-circle-outline' },
+  { value: 'medium', label: 'Medium', color: '#FFA502', icon: 'remove-circle-outline' },
+  { value: 'high',   label: 'High',   color: '#FF4757', icon: 'chevron-up-circle-outline' },
+];
+
+const CATEGORY_COLORS = ['#4A4AE8', '#FF9BCC', '#C8FF3E', '#FFA502', '#2ED573', '#FF4757', '#7070CC'];
+
+export default function EditProjectScreen() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { updateTask, deleteTask, toggleComplete, isLoading } = useTasks();
+  const { categories, fetchAll: fetchCategories, createCategory } = useCategories();
+
+  const [showNewCatInput, setShowNewCatInput] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [creatingCat, setCreatingCat] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+  const [task, setTask] = useState<Task | null>(null);
+  const [error, setError] = useState('');
+
+  // Form fields
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState<TaskPriority>('medium');
+  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
+  const [dueDate, setDueDate] = useState<Date | null>(null);
+
+  const [showPicker, setShowPicker] = useState(false);
+  const [showCategories, setShowCategories] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const rotationAnim = useRef(new Animated.Value(0)).current;
 
-  const statusOptions = [
-    { label: 'To Do', icon: <ListTodo size={18} color="#64748b" /> },
-    { label: 'In Progress', icon: <Clock size={18} color="#f59e0b" /> },
-    { label: 'Completed', icon: <CheckCircle2 size={18} color="#10b981" /> },
-  ];
+  // Load task + categories
+  useEffect(() => {
+    fetchCategories().catch(() => {});
 
-  // Helper to format date for the UI
-  // Add ': Date' to the parameter
-const formatDate = (date: Date) => {
-  return date.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-};
-
-  const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-  // Hide picker for Android immediately
-  if (Platform.OS === 'android') setShowPicker(null);
-
-  if (selectedDate) {
-    if (showPicker === 'start') {
-      setProject({ ...project, startDate: selectedDate });
-    } else {
-      setProject({ ...project, endDate: selectedDate });
+    if (!id) {
+      setError('Missing task id.');
+      setLoading(false);
+      return;
     }
-  }
-};
+    (async () => {
+      try {
+        const t = await tasksApi.getById(id);
+        setTask(t);
+        setTitle(t.title);
+        setDescription(t.description ?? '');
+        setPriority(t.priority);
+        setCategoryId(t.categoryId);
+        setDueDate(t.dueDate ? new Date(t.dueDate) : null);
+      } catch (e) {
+        const err = toApiError(e);
+        setError(err.message);
+        showApiErrorAlert(err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id, fetchCategories]);
 
-  const toggleDropdown = () => {
+  const selectedCategory = categories.find(c => c.id === categoryId);
+
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+
+  const onDateChange = (_e: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS === 'android') setShowPicker(false);
+    if (selected) setDueDate(selected);
+  };
+
+  const toggleCategoriesMenu = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     Animated.timing(rotationAnim, {
-      toValue: isDropdownOpen ? 0 : 1,
+      toValue: showCategories ? 0 : 1,
       duration: 250,
       useNativeDriver: true,
     }).start();
-    setIsDropdownOpen(!isDropdownOpen);
+    setShowCategories(v => !v);
   };
-
-  const selectStatus = (val: string) => { 
-  setProject({ ...project, status: val });
-  toggleDropdown();
-};
 
   const arrowRotation = rotationAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
   });
 
-  const handleUpdate = () => {
-    console.log("Saving changes:", {
-      ...project,
-      startDate: formatDate(project.startDate),
-      endDate: formatDate(project.endDate)
-    });
+  const toZeroTimeIso = (d: Date) =>
+    new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString();
+
+  const handleSave = async () => {
+    if (!task) return;
+    setError('');
+    if (!title.trim()) {
+      setError('Title is required.');
+      return;
+    }
+    try {
+      await updateTask(task.id, {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        priority,
+        categoryId,
+        dueDate: dueDate ? toZeroTimeIso(dueDate) : undefined,
+      });
+      router.back();
+    } catch (e) {
+      const err = toApiError(e);
+      setError(err.message);
+      showApiErrorAlert(err);
+    }
   };
 
-  const goBack = () => {
-    router.back();
+  const handleDelete = async () => {
+    if (!task) return;
+    try {
+      await deleteTask(task.id);
+      setConfirmDelete(false);
+      router.back();
+    } catch (e) {
+      const err = toApiError(e);
+      setError(err.message);
+      showApiErrorAlert(err);
+      setConfirmDelete(false);
+    }
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-        style={{ flex: 1 }}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.iconButton} onPress={goBack}>
-            <ChevronLeft color="#1A1C1E" size={24} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Project</Text>
-          <TouchableOpacity style={styles.iconButton}>
-            <Bell color="#1A1C1E" size={24} />
-            <View style={styles.notificationDot} />
+  const handleCreateCategory = async () => {
+    const name = newCatName.trim();
+    if (!name) return;
+    setCreatingCat(true);
+    try {
+      const color = CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length];
+      const cat = await createCategory({ name, color });
+      setCategoryId(cat.id);
+      setNewCatName('');
+      setShowNewCatInput(false);
+      toggleCategoriesMenu();
+    } catch (e) {
+      const err = toApiError(e);
+      setError(err.message);
+      showApiErrorAlert(err);
+    } finally {
+      setCreatingCat(false);
+    }
+  };
+
+  const handleToggleComplete = async () => {
+    if (!task) return;
+    try {
+      await toggleComplete(task);
+      setTask({
+        ...task,
+        status: task.status === 'completed' ? 'pending' : 'completed',
+      });
+    } catch (e) {
+      showApiErrorAlert(e);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="large" color={COLORS.LIME} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!task) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.loaderWrap}>
+          <Ionicons name="alert-circle-outline" size={42} color={COLORS.LIME} />
+          <Text style={styles.errorCenter}>{error || 'Task not found.'}</Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={() => router.back()}>
+            <Text style={styles.primaryButtonText}>Go back</Text>
           </TouchableOpacity>
         </View>
+      </SafeAreaView>
+    );
+  }
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Task Group */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={[styles.iconContainer, { backgroundColor: '#FDECF1' }]}>
-                <Briefcase color="#E91E63" size={20} />
-              </View>
-              <View style={styles.textContainer}>
-                <Text style={styles.label}>Task Group</Text>
-                <TextInput 
-                  style={styles.input}
-                  value={project.group}
-                  onChangeText={(text) => setProject({...project, group: text})}
-                />
-              </View>
-              <ChevronDown color="#8E8E93" size={20} />
-            </View>
-          </View>
+  const isCompleted = task.status === 'completed';
 
-          {/* Project Name */}
-          <View style={styles.card}>
-            <Text style={styles.label}>Project Name</Text>
-            <TextInput 
-              style={styles.input}
-              value={project.name}
-              onChangeText={(text) => setProject({...project, name: text})}
-              placeholder="Enter project name"
-            />
-          </View>
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        {/* ── Purple hero ── */}
+        <View style={styles.hero}>
+          <View style={styles.circleLarge} />
+          <View style={styles.circleMedium} />
+          <View style={styles.circleDot} />
 
-          {/* Description */}
-          <View style={[styles.card, styles.descriptionCard]}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput 
-              style={[styles.input, styles.multilineInput]}
-              value={project.description}
-              onChangeText={(text) => setProject({...project, description: text})}
-              multiline
-              scrollEnabled={false}
-            />
-          </View>
-
-          {/* Start Date Picker Trigger */}
-          <TouchableOpacity 
-            style={styles.card} 
-            activeOpacity={0.7}
-            onPress={() => setShowPicker('start')}
-          >
-            <View style={styles.cardHeader}>
-              <View style={[styles.iconContainer, { backgroundColor: '#EEF0FF' }]}>
-                <Calendar color="#5D5FEF" size={20} />
-              </View>
-              <View style={styles.textContainer}>
-                <Text style={styles.label}>Start Date</Text>
-                <Text style={styles.valueText}>{formatDate(project.startDate)}</Text>
-              </View>
-              <ChevronDown color="#8E8E93" size={20} />
-            </View>
-          </TouchableOpacity>
-
-          {/* End Date Picker Trigger */}
-          <TouchableOpacity 
-            style={styles.card} 
-            activeOpacity={0.7}
-            onPress={() => setShowPicker('end')}
-          >
-            <View style={styles.cardHeader}>
-              <View style={[styles.iconContainer, { backgroundColor: '#EEF0FF' }]}>
-                <Calendar color="#5D5FEF" size={20} />
-              </View>
-              <View style={styles.textContainer}>
-                <Text style={styles.label}>End Date</Text>
-                <Text style={styles.valueText}>{formatDate(project.endDate)}</Text>
-              </View>
-              <ChevronDown color="#8E8E93" size={20} />
-            </View>
-          </TouchableOpacity>
-
-          {/* Native Date Picker Component */}
-          {showPicker && (
-            <DateTimePicker
-              value={showPicker === 'start' ? project.startDate : project.endDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={onDateChange}
-              style={Platform.OS === 'ios' ? styles.iosPicker : null}
-            />
-          )}
-
-          {/* Status Dropdown */}
-          <View style={styles.dropdownContainer}>
-            <TouchableOpacity 
-              activeOpacity={0.9}
-              onPress={toggleDropdown}
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={20} color={COLORS.DARK_TEXT} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Edit Task</Text>
+            <TouchableOpacity
               style={[
-                styles.card, 
-                styles.statusCard, 
-                isDropdownOpen && styles.statusCardActive
+                styles.headerBtn,
+                isCompleted && { backgroundColor: '#2ED573' },
               ]}
+              onPress={handleToggleComplete}
             >
-              <View style={styles.cardHeader}>
-                <View style={[styles.iconContainer, { backgroundColor: '#C7C9FF' }]}>
-                  <Edit3 color="#5D5FEF" size={20} />
+              <Ionicons
+                name={isCompleted ? 'checkmark-done' : 'checkmark-outline'}
+                size={18}
+                color={COLORS.DARK_TEXT}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.heroSubtitle}>
+            {isCompleted ? 'Completed' : 'Active'}
+          </Text>
+          <Text style={styles.heroTitle} numberOfLines={2}>
+            {title.toUpperCase()}
+          </Text>
+        </View>
+
+        {/* ── White card ── */}
+        <View style={styles.card2}>
+          <View style={styles.handle} />
+
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle-outline" size={16} color="#fff" />
+                <Text style={styles.errorBannerText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Title */}
+            <View style={styles.fieldCard}>
+              <Text style={styles.labelSolo}>Title</Text>
+              <TextInput
+                style={styles.inputSolo}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Task title"
+                placeholderTextColor={COLORS.MUTED_ON_CARD}
+              />
+            </View>
+
+            {/* Description */}
+            <View style={[styles.fieldCard, styles.descriptionCard]}>
+              <Text style={styles.labelSolo}>Description</Text>
+              <TextInput
+                style={[styles.inputSolo, styles.multilineInput]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Add notes (optional)"
+                placeholderTextColor={COLORS.MUTED_ON_CARD}
+                multiline
+                scrollEnabled={false}
+              />
+            </View>
+
+            {/* Category */}
+            <TouchableOpacity
+              style={[
+                styles.fieldCard,
+                showCategories && styles.fieldCardActive,
+              ]}
+              activeOpacity={0.8}
+              onPress={toggleCategoriesMenu}
+            >
+              <View style={styles.fieldRow}>
+                <View style={[styles.iconContainer, { backgroundColor: '#FDECF1' }]}>
+                  <Ionicons name="grid-outline" size={18} color="#E91E63" />
                 </View>
                 <View style={styles.textContainer}>
-                  <Text style={styles.label}>Status</Text>
-                  <Text style={styles.valueText}>{project.status}</Text>
+                  <Text style={styles.label}>Category</Text>
+                  <Text style={styles.valueText}>
+                    {selectedCategory?.name ?? 'None'}
+                  </Text>
                 </View>
                 <Animated.View style={{ transform: [{ rotate: arrowRotation }] }}>
-                  <ChevronDown color="#1A1C1E" size={20} />
+                  <Ionicons name="chevron-down" size={18} color={COLORS.MUTED_ON_CARD} />
                 </Animated.View>
               </View>
             </TouchableOpacity>
 
-            {isDropdownOpen && (
+            {showCategories && (
               <View style={styles.dropdownMenu}>
-                {statusOptions.map((item, index) => (
+                <TouchableOpacity
+                  style={[styles.optionItem, styles.optionBorder]}
+                  onPress={() => {
+                    setCategoryId(undefined);
+                    toggleCategoriesMenu();
+                  }}
+                >
+                  <Ionicons name="close-circle-outline" size={18} color={COLORS.MUTED_ON_CARD} />
+                  <Text style={[styles.optionText, !categoryId && styles.selectedOptionText]}>
+                    None
+                  </Text>
+                </TouchableOpacity>
+
+                {categories.map(cat => (
                   <TouchableOpacity
-                    key={item.label}
-                    style={[
-                      styles.optionItem,
-                      index !== statusOptions.length - 1 && styles.optionBorder
-                    ]}
-                    onPress={() => selectStatus(item.label)}
+                    key={cat.id}
+                    style={[styles.optionItem, styles.optionBorder]}
+                    onPress={() => {
+                      setCategoryId(cat.id);
+                      toggleCategoriesMenu();
+                    }}
                   >
-                    {item.icon}
-                    <Text style={[
-                      styles.optionText, 
-                      project.status === item.label && styles.selectedOptionText
-                    ]}>
-                      {item.label}
+                    <View style={[styles.colorDot, { backgroundColor: cat.color }]} />
+                    <Text
+                      style={[
+                        styles.optionText,
+                        categoryId === cat.id && styles.selectedOptionText,
+                      ]}
+                    >
+                      {cat.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
+
+                {categories.length === 0 && (
+                  <Text style={styles.emptyDropdown}>
+                    No categories yet. Create your first one below.
+                  </Text>
+                )}
+
+                {showNewCatInput ? (
+                  <View style={styles.newCatRow}>
+                    <TextInput
+                      style={styles.newCatInput}
+                      value={newCatName}
+                      onChangeText={setNewCatName}
+                      placeholder="Category name"
+                      placeholderTextColor={COLORS.MUTED_ON_CARD}
+                      autoFocus
+                      onSubmitEditing={handleCreateCategory}
+                      returnKeyType="done"
+                    />
+                    <TouchableOpacity
+                      style={[styles.newCatBtn, styles.newCatBtnPrimary]}
+                      onPress={handleCreateCategory}
+                      disabled={creatingCat || !newCatName.trim()}
+                      activeOpacity={0.85}
+                    >
+                      {creatingCat ? (
+                        <ActivityIndicator size="small" color={COLORS.DARK_TEXT} />
+                      ) : (
+                        <Ionicons name="checkmark" size={18} color={COLORS.DARK_TEXT} />
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.newCatBtn}
+                      onPress={() => {
+                        setNewCatName('');
+                        setShowNewCatInput(false);
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="close" size={18} color={COLORS.MUTED_ON_CARD} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.optionItem}
+                    onPress={() => setShowNewCatInput(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="add-circle" size={18} color={COLORS.BACKGROUND} />
+                    <Text style={[styles.optionText, { color: COLORS.BACKGROUND, fontFamily: FontFamily.BOLD }]}>
+                      New Category
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
+
+            {/* Due Date */}
+            <TouchableOpacity
+              style={styles.fieldCard}
+              activeOpacity={0.7}
+              onPress={() => setShowPicker(true)}
+            >
+              <View style={styles.fieldRow}>
+                <View style={[styles.iconContainer, { backgroundColor: COLORS.INPUT_BG }]}>
+                  <Ionicons name="calendar-outline" size={18} color={COLORS.BACKGROUND} />
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.label}>Due Date</Text>
+                  <Text style={styles.valueText}>
+                    {dueDate ? formatDate(dueDate) : 'No date'}
+                  </Text>
+                </View>
+                {dueDate ? (
+                  <TouchableOpacity onPress={() => setDueDate(null)} hitSlop={8}>
+                    <Ionicons name="close-circle" size={18} color={COLORS.MUTED_ON_CARD} />
+                  </TouchableOpacity>
+                ) : (
+                  <Ionicons name="chevron-down" size={18} color={COLORS.MUTED_ON_CARD} />
+                )}
+              </View>
+            </TouchableOpacity>
+
+            {showPicker && (
+              <DateTimePicker
+                value={dueDate ?? new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                onChange={onDateChange}
+                themeVariant="light"
+                textColor={COLORS.DARK_TEXT}
+                accentColor={COLORS.BACKGROUND}
+                style={Platform.OS === 'ios' ? styles.iosPicker : null}
+              />
+            )}
+
+            {/* Priority */}
+            <Text style={[styles.labelSolo, { marginTop: 4, marginBottom: 8, marginLeft: 4 }]}>
+              Priority
+            </Text>
+            <View style={styles.priorityRow}>
+              {PRIORITY_OPTIONS.map(opt => {
+                const active = priority === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.priorityChip,
+                      active && { backgroundColor: opt.color, borderColor: opt.color },
+                    ]}
+                    onPress={() => setPriority(opt.value)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={opt.icon}
+                      size={16}
+                      color={active ? COLORS.WHITE_TEXT : opt.color}
+                    />
+                    <Text
+                      style={[
+                        styles.priorityChipText,
+                        { color: active ? COLORS.WHITE_TEXT : opt.color },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton, isLoading && styles.buttonDisabled]}
+              onPress={handleSave}
+              activeOpacity={0.85}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={COLORS.DARK_TEXT} />
+              ) : (
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.deleteButton]}
+              onPress={() => setConfirmDelete(true)}
+              activeOpacity={0.85}
+              disabled={isLoading}
+            >
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </TouchableOpacity>
           </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
 
-      <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.button, styles.editButton]} 
-          onPress={handleUpdate}
-        >
-          <Text style={styles.buttonText}>Save Changes</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.button, styles.deleteButton]}>
-          <Text style={styles.buttonText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Delete confirmation */}
+      <Modal
+        transparent
+        visible={confirmDelete}
+        animationType="fade"
+        onRequestClose={() => setConfirmDelete(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIcon}>
+              <Ionicons name="trash-outline" size={26} color="#FF4757" />
+            </View>
+            <Text style={styles.modalTitle}>Delete Task?</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to delete "{task.title}"?
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalCancelBtn]}
+                onPress={() => setConfirmDelete(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalDeleteBtn]}
+                onPress={handleDelete}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalDeleteBtnText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FF' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1A1C1E' },
-  iconButton: { padding: 8 },
-  notificationDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, backgroundColor: '#E91E63', borderRadius: 4, borderWidth: 1, borderColor: 'white' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 140 },
-  card: { backgroundColor: 'white', borderRadius: 16, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center' },
-  iconContainer: { padding: 10, borderRadius: 12, marginRight: 12 },
+  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+
+  loaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 28,
+  },
+  errorCenter: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 15,
+    color: COLORS.WHITE_TEXT,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+
+  // Hero
+  hero: {
+    backgroundColor: COLORS.BACKGROUND,
+    paddingHorizontal: 20,
+    paddingBottom: 44,
+    position: 'relative',
+  },
+  circleLarge: {
+    position: 'absolute',
+    width: 140, height: 140, borderRadius: 70,
+    backgroundColor: COLORS.CIRCLE_LIGHT,
+    top: -30, left: -40, opacity: 0.6,
+  },
+  circleMedium: {
+    position: 'absolute',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: COLORS.CIRCLE_LIGHTER,
+    top: 20, right: -20, opacity: 0.6,
+  },
+  circleDot: {
+    position: 'absolute',
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: COLORS.LIME,
+    top: 40, right: '35%',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    zIndex: 1,
+  },
+  headerBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: COLORS.LIME,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 18,
+    color: COLORS.WHITE_TEXT,
+    letterSpacing: 0.3,
+  },
+  heroSubtitle: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 13,
+    color: COLORS.MUTED_ON_DARK,
+    marginTop: 12,
+    zIndex: 1,
+  },
+  heroTitle: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 24,
+    color: COLORS.LIME,
+    letterSpacing: 0.8,
+    marginTop: 2,
+    zIndex: 1,
+  },
+
+  card2: {
+    flex: 1,
+    backgroundColor: COLORS.CARD,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -28,
+    paddingTop: 16,
+  },
+  handle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: COLORS.INPUT_BORDER,
+    alignSelf: 'center', marginBottom: 16,
+  },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
+
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FF4757',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  errorBannerText: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 13,
+    color: '#fff',
+    flex: 1,
+  },
+
+  fieldCard: {
+    backgroundColor: COLORS.INPUT_BG,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.INPUT_BORDER,
+  },
+  fieldCardActive: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    marginBottom: 0,
+  },
+  fieldRow: { flexDirection: 'row', alignItems: 'center' },
+  iconContainer: {
+    width: 38, height: 38, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 12,
+  },
   textContainer: { flex: 1 },
-  label: { fontSize: 12, color: '#8E8E93', marginBottom: 2 },
-  input: { fontSize: 16, fontWeight: '600', color: '#1A1C1E', paddingVertical: 0 },
-  valueText: { fontSize: 16, fontWeight: '600', color: '#1A1C1E' },
-  multilineInput: { lineHeight: 22, fontWeight: '400', color: '#4A4A4A' },
+  label: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 12,
+    color: COLORS.MUTED_ON_CARD,
+    marginBottom: 2,
+  },
+  labelSolo: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 12,
+    color: COLORS.MUTED_ON_CARD,
+    marginBottom: 4,
+  },
+  inputSolo: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 15,
+    color: COLORS.DARK_TEXT,
+    paddingVertical: 0,
+  },
+  valueText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 15,
+    color: COLORS.DARK_TEXT,
+  },
+  multilineInput: {
+    lineHeight: 22,
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: COLORS.DARK_TEXT,
+    minHeight: 70,
+  },
   descriptionCard: { backgroundColor: '#FFFCF5' },
-  iosPicker: { backgroundColor: 'white', borderRadius: 16, marginBottom: 16 },
-  
-  dropdownContainer: { zIndex: 1000 },
-  statusCard: { backgroundColor: '#E8E9FF' },
-  statusCardActive: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 },
+  iosPicker: { backgroundColor: COLORS.CARD, borderRadius: 16, marginBottom: 12 },
+
   dropdownMenu: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.CARD,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     paddingHorizontal: 16,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    marginBottom: 16,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: COLORS.INPUT_BORDER,
+    marginBottom: 12,
   },
-  optionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
-  optionBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F3FF' },
-  optionText: { fontSize: 15, color: '#4A4A4A' },
-  selectedOptionText: { color: '#5D5FEF', fontWeight: 'bold' },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  optionBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.INPUT_BORDER,
+  },
+  optionText: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 15,
+    color: COLORS.DARK_TEXT,
+  },
+  selectedOptionText: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.BACKGROUND,
+  },
+  emptyDropdown: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 13,
+    color: COLORS.MUTED_ON_CARD,
+    paddingVertical: 14,
+    textAlign: 'center',
+  },
+  colorDot: { width: 18, height: 18, borderRadius: 9 },
 
-  footer: { position: 'absolute', bottom: 0, flexDirection: 'row', padding: 20, backgroundColor: '#F8F9FF', width: '100%', gap: 12 },
-  button: { flex: 1, height: 55, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  editButton: { backgroundColor: '#5D5FEF' },
-  deleteButton: { backgroundColor: '#E53935' },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  newCatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  newCatInput: {
+    flex: 1,
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: COLORS.DARK_TEXT,
+    backgroundColor: COLORS.INPUT_BG,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.INPUT_BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  newCatBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: COLORS.INPUT_BG,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
+  },
+  newCatBtnPrimary: {
+    backgroundColor: COLORS.LIME,
+    borderColor: COLORS.LIME,
+  },
+
+  priorityRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  priorityChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 14,
+    paddingVertical: 12,
+    backgroundColor: COLORS.INPUT_BG,
+    borderWidth: 1.5,
+    borderColor: COLORS.INPUT_BORDER,
+  },
+  priorityChipText: { fontFamily: FontFamily.BOLD, fontSize: 13 },
+
+  footer: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 12,
+    backgroundColor: COLORS.CARD,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.INPUT_BORDER,
+  },
+  button: {
+    flex: 1,
+    height: 52,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveButton: {
+    backgroundColor: COLORS.LIME,
+    shadowColor: COLORS.BACKGROUND,
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  saveButtonText: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.DARK_TEXT,
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  deleteButton: {
+    backgroundColor: COLORS.INPUT_BG,
+    borderWidth: 1.5,
+    borderColor: COLORS.INPUT_BORDER,
+  },
+  deleteButtonText: {
+    fontFamily: FontFamily.BOLD,
+    color: '#FF4757',
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  buttonDisabled: { opacity: 0.6 },
+  primaryButton: {
+    height: 52,
+    borderRadius: 28,
+    paddingHorizontal: 28,
+    backgroundColor: COLORS.LIME,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.DARK_TEXT,
+    fontSize: 15,
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(26,26,46,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  modalCard: {
+    backgroundColor: COLORS.CARD,
+    borderRadius: 24,
+    width: '100%',
+    maxWidth: 360,
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalIcon: {
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: '#FFECEE',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 18,
+    color: COLORS.DARK_TEXT,
+    marginBottom: 6,
+  },
+  modalMessage: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: COLORS.MUTED_ON_CARD,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  modalActions: { flexDirection: 'row', gap: 10, width: '100%' },
+  modalBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  modalCancelBtn: {
+    backgroundColor: COLORS.INPUT_BG,
+    borderWidth: 1.5,
+    borderColor: COLORS.INPUT_BORDER,
+  },
+  modalDeleteBtn: { backgroundColor: '#FF4757' },
+  modalCancelBtnText: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.MUTED_ON_CARD,
+    fontSize: 14,
+  },
+  modalDeleteBtnText: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.WHITE_TEXT,
+    fontSize: 14,
+  },
 });
-
-export default EditProjectScreen;

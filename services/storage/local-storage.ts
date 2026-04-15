@@ -22,4 +22,5 @@ export const storage = {
 export const STORAGE_KEYS = {
   AUTH_TOKEN: 'auth_token',
   USER: 'user',
+  SESSION_STICKER: 'session_sticker',
 } as const;

@@ -70,7 +70,7 @@ export default function WelcomeScreen() {
 
       {/* Title */}
       <View style={styles.titleContainer}>
-        <Text style={styles.title}>PLAN YOUR{'\n'}DAY WITH{'\n'}CHARMI!</Text>
+        <Text style={styles.title}>PLAN YOUR{'\n'}DAY WITH{'\n'}DAILO!</Text>
       </View>
 
       {/* Mascot area */}
