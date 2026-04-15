@@ -1,610 +1,330 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
+import React, { useState, useRef } from 'react';
+import { 
+  StyleSheet, 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  ScrollView, 
   TextInput,
-  StatusBar,
+  KeyboardAvoidingView,
   Platform,
+  Animated,
+  LayoutAnimation,
+  UIManager
 } from 'react-native';
+import { 
+  ChevronLeft, 
+  Bell, 
+  Briefcase, 
+  Calendar, 
+  Edit3, 
+  ChevronDown,
+  CheckCircle2,
+  Clock,
+  ListTodo
+} from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+// import DateTimePicker from '@react-native-community/datetimepicker';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
-// Types
-interface ProjectData {
-  taskGroup: string;
-  projectName: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  status: 'Completed' | 'In Progress' | 'To-do';
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-export default function EditProject() {
+const EditProjectScreen = () => {
   const router = useRouter();
-  const params = useLocalSearchParams();
   
-  // Initialize form data (in real app, this would come from params or API)
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [datePickerConfig, setDatePickerConfig] = useState<{
-    visible: boolean;
-    field: 'startDate' | 'endDate' | null;
-    date: Date;
-  }>({ visible: false, field: null, date: new Date() });
-  
-  const statusOptions: ProjectData['status'][] = ['To-do', 'In Progress', 'Completed'];
-  
-  const [formData, setFormData] = useState<ProjectData>({
-    taskGroup: 'Work',
-    projectName: 'Grocery Shopping App',
+  const [project, setProject] = useState({
+    group: 'Work',
+    name: 'Grocery Shopping App',
     description: 'This application is designed for super shops. By using this application they can enlist all their products in one place and can deliver. Customers will get a one-stop solution for their daily shopping.',
-    startDate: '01 May, 2022',
-    endDate: '30 June, 2022',
-    status: 'Completed',
+    startDate: new Date(2022, 4, 1), // May 1, 2022
+    endDate: new Date(2022, 5, 30),   // June 30, 2022
+    status: 'Completed'
   });
 
-  const handleEdit = () => {
-    // Handle edit functionality
-    console.log('Edit project:', formData);
-    // Navigate back or show success message
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showPicker, setShowPicker] = useState<'start' | 'end' | null>(null);
+  const rotationAnim = useRef(new Animated.Value(0)).current;
+
+  const statusOptions = [
+    { label: 'To Do', icon: <ListTodo size={18} color="#64748b" /> },
+    { label: 'In Progress', icon: <Clock size={18} color="#f59e0b" /> },
+    { label: 'Completed', icon: <CheckCircle2 size={18} color="#10b981" /> },
+  ];
+
+  // Helper to format date for the UI
+  // Add ': Date' to the parameter
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+  const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  // Hide picker for Android immediately
+  if (Platform.OS === 'android') setShowPicker(null);
+
+  if (selectedDate) {
+    if (showPicker === 'start') {
+      setProject({ ...project, startDate: selectedDate });
+    } else {
+      setProject({ ...project, endDate: selectedDate });
+    }
+  }
+};
+
+  const toggleDropdown = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    Animated.timing(rotationAnim, {
+      toValue: isDropdownOpen ? 0 : 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const handleDelete = () => {
-    // Handle delete functionality
-    console.log('Delete project');
-    // Navigate back or show confirmation
+  const selectStatus = (val: string) => { 
+  setProject({ ...project, status: val });
+  toggleDropdown();
+};
+
+  const arrowRotation = rotationAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
+  const handleUpdate = () => {
+    console.log("Saving changes:", {
+      ...project,
+      startDate: formatDate(project.startDate),
+      endDate: formatDate(project.endDate)
+    });
   };
 
   const goBack = () => {
     router.back();
   };
 
-  const getStatusBgColor = (status: string) => {
-    switch(status) {
-      case 'Completed': return '#E8E5FF';
-      case 'In Progress': return '#FFF4E5';
-      case 'To-do': return '#FFE5E5';
-      default: return '#E8E5FF';
-    }
-  };
-
-  const handleStatusSelect = (status: ProjectData['status']) => {
-    setFormData(prev => ({ ...prev, status }));
-    setStatusDropdownOpen(false);
-  };
-
-  const parseDateString = (dateStr: string): Date => {
-    const months: { [key: string]: number } = {
-      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'June': 5,
-      'July': 6, 'Aug': 7, 'Sept': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
-    };
-    const parts = dateStr.split(' ');
-    const day = parseInt(parts[0]);
-    const month = months[parts[1].replace(',', '')] || 0;
-    const year = parseInt(parts[2]);
-    return new Date(year, month, day);
-  };
-
-  const formatDate = (date: Date): string => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'June', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day} ${month}, ${year}`;
-  };
-
-  const openDatePicker = (field: 'startDate' | 'endDate') => {
-    const currentDate = parseDateString(formData[field]);
-    setDatePickerConfig({
-      visible: true,
-      field,
-      date: currentDate,
-    });
-  };
-
-  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setDatePickerConfig(prev => ({ ...prev, visible: false }));
-    }
-    
-    if (selectedDate && datePickerConfig.field) {
-      setFormData(prev => ({
-        ...prev,
-        [datePickerConfig.field!]: formatDate(selectedDate),
-      }));
-      if (Platform.OS === 'ios') {
-        setDatePickerConfig(prev => ({ ...prev, date: selectedDate }));
-      }
-    }
-  };
-
-  const closeDatePicker = () => {
-    setDatePickerConfig(prev => ({ ...prev, visible: false }));
-  };
-
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F7F8FF" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={goBack}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Project</Text>
-        <TouchableOpacity style={styles.bellButton}>
-          <Text style={styles.bellIcon}>🔔</Text>
-          <View style={styles.notificationDot} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Form Content */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.formContainer}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={{ flex: 1 }}
       >
-        {/* Task Group */}
-        <View style={styles.inputCard}>
-          <View style={styles.inputHeader}>
-            <View style={styles.labelContainer}>
-              <View style={styles.iconContainerPink}>
-                <Text style={styles.icon}>💼</Text>
-              </View>
-              <Text style={styles.labelSmall}>Task Group</Text>
-            </View>
-            <Text style={styles.dropdownArrow}>▼</Text>
-          </View>
-          <Text style={[styles.value, styles.valueIndented]}>{formData.taskGroup}</Text>
-        </View>
-
-        {/* Project Name */}
-        <View style={styles.inputCard}>
-          <Text style={styles.labelSmall}>Project Name</Text>
-          <TextInput
-            style={styles.textInput}
-            value={formData.projectName}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, projectName: text }))}
-            placeholder="Enter project name"
-            placeholderTextColor="#999"
-          />
-        </View>
-
-        {/* Description */}
-        <View style={[styles.inputCard, styles.descriptionCard]}>
-          <Text style={styles.labelSmall}>Description</Text>
-          <TextInput
-            style={styles.textInputMultiline}
-            value={formData.description}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-            placeholder="Enter description"
-            placeholderTextColor="#999"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* Start Date */}
-        <TouchableOpacity style={styles.inputCard} onPress={() => openDatePicker('startDate')}>
-          <View style={styles.inputHeader}>
-            <View style={styles.labelContainer}>
-              <View style={styles.iconContainerPurple}>
-                <Text style={styles.iconWhite}>📅</Text>
-              </View>
-              <Text style={styles.labelSmall}>Start Date</Text>
-            </View>
-            <Text style={styles.dropdownArrow}>▼</Text>
-          </View>
-          <Text style={[styles.value, styles.valueIndented]}>{formData.startDate}</Text>
-        </TouchableOpacity>
-
-        {/* End Date */}
-        <TouchableOpacity style={styles.inputCard} onPress={() => openDatePicker('endDate')}>
-          <View style={styles.inputHeader}>
-            <View style={styles.labelContainer}>
-              <View style={styles.iconContainerPurple}>
-                <Text style={styles.iconWhite}>📅</Text>
-              </View>
-              <Text style={styles.labelSmall}>End Date</Text>
-            </View>
-            <Text style={styles.dropdownArrow}>▼</Text>
-          </View>
-          <Text style={[styles.value, styles.valueIndented]}>{formData.endDate}</Text>
-        </TouchableOpacity>
-
-        {/* Status */}
-        <View style={[styles.inputCard, { backgroundColor: getStatusBgColor(formData.status) }]}>
-          <TouchableOpacity onPress={() => setStatusDropdownOpen(!statusDropdownOpen)}>
-            <View style={styles.inputHeader}>
-              <View style={styles.labelContainer}>
-                <View style={styles.iconContainerPurpleSmall}>
-                  <Text style={styles.iconWhiteSmall}>✏️</Text>
-                </View>
-                <Text style={styles.labelSmall}>Status</Text>
-              </View>
-              <Text style={[styles.dropdownArrow, statusDropdownOpen && styles.dropdownArrowOpen]}>▼</Text>
-            </View>
-            <Text style={[styles.value, styles.valueIndented]}>{formData.status}</Text>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.iconButton} onPress={goBack}>
+            <ChevronLeft color="#1A1C1E" size={24} />
           </TouchableOpacity>
-          
-          {statusDropdownOpen && (
-            <View style={styles.dropdownMenu}>
-              {statusOptions.map((status) => (
-                <TouchableOpacity
-                  key={status}
-                  style={[
-                    styles.dropdownItem,
-                    formData.status === status && styles.dropdownItemSelected
-                  ]}
-                  onPress={() => handleStatusSelect(status)}
-                >
-                  <View style={[styles.statusDot, { backgroundColor: getStatusBgColor(status) }]} />
-                  <Text style={[
-                    styles.dropdownItemText,
-                    formData.status === status && styles.dropdownItemTextSelected
-                  ]}>
-                    {status}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          <Text style={styles.headerTitle}>Edit Project</Text>
+          <TouchableOpacity style={styles.iconButton}>
+            <Bell color="#1A1C1E" size={24} />
+            <View style={styles.notificationDot} />
+          </TouchableOpacity>
         </View>
 
-        {/* iOS Date Picker Modal */}
-        {datePickerConfig.visible && Platform.OS === 'ios' && (
-          <View style={styles.datePickerModal}>
-            <View style={styles.datePickerContainer}>
-              <View style={styles.datePickerHeader}>
-                <TouchableOpacity onPress={closeDatePicker}>
-                  <Text style={styles.datePickerButton}>Done</Text>
-                </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Task Group */}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.iconContainer, { backgroundColor: '#FDECF1' }]}>
+                <Briefcase color="#E91E63" size={20} />
               </View>
-              <DateTimePicker
-                value={datePickerConfig.date}
-                mode="date"
-                display="spinner"
-                onChange={handleDateChange}
-              />
+              <View style={styles.textContainer}>
+                <Text style={styles.label}>Task Group</Text>
+                <TextInput 
+                  style={styles.input}
+                  value={project.group}
+                  onChangeText={(text) => setProject({...project, group: text})}
+                />
+              </View>
+              <ChevronDown color="#8E8E93" size={20} />
             </View>
           </View>
-        )}
 
-        {/* Android Date Picker */}
-        {datePickerConfig.visible && Platform.OS === 'android' && (
-          <DateTimePicker
-            value={datePickerConfig.date}
-            mode="date"
-            display="default"
-            onChange={handleDateChange}
-          />
-        )}
-      </ScrollView>
+          {/* Project Name */}
+          <View style={styles.card}>
+            <Text style={styles.label}>Project Name</Text>
+            <TextInput 
+              style={styles.input}
+              value={project.name}
+              onChangeText={(text) => setProject({...project, name: text})}
+              placeholder="Enter project name"
+            />
+          </View>
 
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={handleEdit}
-          activeOpacity={0.85}
+          {/* Description */}
+          <View style={[styles.card, styles.descriptionCard]}>
+            <Text style={styles.label}>Description</Text>
+            <TextInput 
+              style={[styles.input, styles.multilineInput]}
+              value={project.description}
+              onChangeText={(text) => setProject({...project, description: text})}
+              multiline
+              scrollEnabled={false}
+            />
+          </View>
+
+          {/* Start Date Picker Trigger */}
+          <TouchableOpacity 
+            style={styles.card} 
+            activeOpacity={0.7}
+            onPress={() => setShowPicker('start')}
+          >
+            <View style={styles.cardHeader}>
+              <View style={[styles.iconContainer, { backgroundColor: '#EEF0FF' }]}>
+                <Calendar color="#5D5FEF" size={20} />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.label}>Start Date</Text>
+                <Text style={styles.valueText}>{formatDate(project.startDate)}</Text>
+              </View>
+              <ChevronDown color="#8E8E93" size={20} />
+            </View>
+          </TouchableOpacity>
+
+          {/* End Date Picker Trigger */}
+          <TouchableOpacity 
+            style={styles.card} 
+            activeOpacity={0.7}
+            onPress={() => setShowPicker('end')}
+          >
+            <View style={styles.cardHeader}>
+              <View style={[styles.iconContainer, { backgroundColor: '#EEF0FF' }]}>
+                <Calendar color="#5D5FEF" size={20} />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.label}>End Date</Text>
+                <Text style={styles.valueText}>{formatDate(project.endDate)}</Text>
+              </View>
+              <ChevronDown color="#8E8E93" size={20} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Native Date Picker Component */}
+          {showPicker && (
+            <DateTimePicker
+              value={showPicker === 'start' ? project.startDate : project.endDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              onChange={onDateChange}
+              style={Platform.OS === 'ios' ? styles.iosPicker : null}
+            />
+          )}
+
+          {/* Status Dropdown */}
+          <View style={styles.dropdownContainer}>
+            <TouchableOpacity 
+              activeOpacity={0.9}
+              onPress={toggleDropdown}
+              style={[
+                styles.card, 
+                styles.statusCard, 
+                isDropdownOpen && styles.statusCardActive
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <View style={[styles.iconContainer, { backgroundColor: '#C7C9FF' }]}>
+                  <Edit3 color="#5D5FEF" size={20} />
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.label}>Status</Text>
+                  <Text style={styles.valueText}>{project.status}</Text>
+                </View>
+                <Animated.View style={{ transform: [{ rotate: arrowRotation }] }}>
+                  <ChevronDown color="#1A1C1E" size={20} />
+                </Animated.View>
+              </View>
+            </TouchableOpacity>
+
+            {isDropdownOpen && (
+              <View style={styles.dropdownMenu}>
+                {statusOptions.map((item, index) => (
+                  <TouchableOpacity
+                    key={item.label}
+                    style={[
+                      styles.optionItem,
+                      index !== statusOptions.length - 1 && styles.optionBorder
+                    ]}
+                    onPress={() => selectStatus(item.label)}
+                  >
+                    {item.icon}
+                    <Text style={[
+                      styles.optionText, 
+                      project.status === item.label && styles.selectedOptionText
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity 
+          style={[styles.button, styles.editButton]} 
+          onPress={handleUpdate}
         >
-          <Text style={styles.editButtonText}>Edit</Text>
+          <Text style={styles.buttonText}>Save Changes</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={handleDelete}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.deleteButtonText}>Delete</Text>
+        <TouchableOpacity style={[styles.button, styles.deleteButton]}>
+          <Text style={styles.buttonText}>Delete</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
-}
-
-// Styles
-const PURPLE = '#6C63FF';
-const RED = '#E53935';
+};
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#F7F8FF',
-  },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  backArrow: { 
-    fontSize: 20, 
-    color: '#333', 
-    fontWeight: 'bold' 
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A2E',
-    letterSpacing: 0.3,
-  },
-  bellButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  bellIcon: { 
-    fontSize: 16,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 8,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: PURPLE,
-    borderWidth: 1.5,
-    borderColor: '#fff',
-  },
-
-  // Form Container
-  formContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 120, // Extra padding for buttons
-    gap: 16,
-  },
-
-  // Input Cards
-  inputCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#6C63FF',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-    
-  },
-  inputHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  labelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  icon: {
-    fontSize: 16,
-    
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A2E',
-  },
-  dropdownArrow: {
-    fontSize: 12,
-    color: '#666',
-  },
-  value: {
-    fontSize: 16,
-    color: '#333',
-    paddingVertical: 4,
-  },
-  descriptionValue: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-    paddingVertical: 4,
-  },
-  // Icon containers
-  iconContainerPink: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#FFE5F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  iconContainerPurple: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: PURPLE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  iconContainerPurpleSmall: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: PURPLE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  iconWhite: {
-    fontSize: 14,
-  },
-  iconWhiteSmall: {
-    fontSize: 12,
-  },
-  labelSmall: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#888',
-  },
-  valueIndented: {
-    marginLeft: 42,
-  },
-  descriptionCard: {
-    backgroundColor: '#FFFBF0',
-  },
-  textInput: {
-    fontSize: 16,
-    color: '#333',
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    marginTop: 4,
-  },
-  textInputMultiline: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    marginTop: 4,
-    minHeight: 80,
-  },
-
-  // Dropdown styles
-  dropdownArrowOpen: {
-    transform: [{ rotate: '180deg' }],
-  },
+  container: { flex: 1, backgroundColor: '#F8F9FF' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1A1C1E' },
+  iconButton: { padding: 8 },
+  notificationDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, backgroundColor: '#E91E63', borderRadius: 4, borderWidth: 1, borderColor: 'white' },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 140 },
+  card: { backgroundColor: 'white', borderRadius: 16, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center' },
+  iconContainer: { padding: 10, borderRadius: 12, marginRight: 12 },
+  textContainer: { flex: 1 },
+  label: { fontSize: 12, color: '#8E8E93', marginBottom: 2 },
+  input: { fontSize: 16, fontWeight: '600', color: '#1A1C1E', paddingVertical: 0 },
+  valueText: { fontSize: 16, fontWeight: '600', color: '#1A1C1E' },
+  multilineInput: { lineHeight: 22, fontWeight: '400', color: '#4A4A4A' },
+  descriptionCard: { backgroundColor: '#FFFCF5' },
+  iosPicker: { backgroundColor: 'white', borderRadius: 16, marginBottom: 16 },
+  
+  dropdownContainer: { zIndex: 1000 },
+  statusCard: { backgroundColor: '#E8E9FF' },
+  statusCardActive: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 },
   dropdownMenu: {
-    marginTop: 12,
-    marginLeft: 42,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  dropdownItemSelected: {
-    backgroundColor: '#F7F8FF',
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 10,
-  },
-  dropdownItemText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  dropdownItemTextSelected: {
-    fontWeight: '600',
-    color: PURPLE,
-  },
-
-  // Date Picker styles
-  datePickerModal: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  datePickerContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    width: '80%',
-    maxWidth: 320,
-  },
-  datePickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 10,
-  },
-  datePickerButton: {
-    color: PURPLE,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  // Buttons
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    gap: 12,
+    backgroundColor: 'white',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 20,
-    paddingBottom: 34, // Extra padding for safe area
-    backgroundColor: '#F7F8FF',
-  },
-  editButton: {
-    flex: 1,
-    backgroundColor: PURPLE,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: PURPLE,
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    elevation: 5,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    marginBottom: 16,
   },
-  editButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  deleteButton: {
-    flex: 1,
-    backgroundColor: RED,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: RED,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
+  optionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
+  optionBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F3FF' },
+  optionText: { fontSize: 15, color: '#4A4A4A' },
+  selectedOptionText: { color: '#5D5FEF', fontWeight: 'bold' },
+
+  footer: { position: 'absolute', bottom: 0, flexDirection: 'row', padding: 20, backgroundColor: '#F8F9FF', width: '100%', gap: 12 },
+  button: { flex: 1, height: 55, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  editButton: { backgroundColor: '#5D5FEF' },
+  deleteButton: { backgroundColor: '#E53935' },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 });
+
+export default EditProjectScreen;
