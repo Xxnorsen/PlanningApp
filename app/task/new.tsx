@@ -1,19 +1,12 @@
-import { View, StyleSheet } from 'react-native';
-import { ThemedText } from '@/components/themed-text';
+import { ComingSoon } from '@/components/ui/coming-soon';
 
 // SCRUM-4: Add Task UI to be implemented
 export default function NewTaskScreen() {
   return (
-    <View style={styles.container}>
-      <ThemedText type="title">New Task</ThemedText>
-    </View>
+    <ComingSoon
+      title="New Task"
+      icon="add-circle-outline"
+      description="A streamlined task-creation flow is coming soon."
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

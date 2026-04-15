@@ -24,6 +24,7 @@ import { COLORS } from '../constants/colors';
 import { FontFamily } from '../constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
+import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
@@ -69,10 +70,14 @@ export function SignInScreen() {
     try {
       await login(email.trim(), password);
       router.replace('/(tabs)');
-    } catch (e: any) {
-      const msg = e?.message ?? 'Please check your credentials.';
-      console.error('[Login error]', msg);
-      setApiError(msg);
+    } catch (e) {
+      const err = toApiError(e);
+      console.error('[Login error]', err.message);
+      setApiError(err.message);
+      // Only alert for infrastructure errors — for bad credentials the inline banner is enough
+      if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
+        showApiErrorAlert(err);
+      }
     }
   };
 

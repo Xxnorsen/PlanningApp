@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from '@/types/user';
 import { authApi } from '@/services/api/auth';
 import { storage, STORAGE_KEYS } from '@/services/storage/local-storage';
+import { registerUnauthorizedHandler } from '@/services/api/errors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -82,6 +83,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await storage.remove(STORAGE_KEYS.USER);
     setToken(null);
     setUser(null);
+  }, []);
+
+  // Register once: any 401 from the API → clear session.
+  // AuthGate in app/_layout.tsx then redirects to /(auth)/login.
+  const logoutRef = useRef(logout);
+  logoutRef.current = logout;
+  useEffect(() => {
+    registerUnauthorizedHandler(() => {
+      logoutRef.current();
+    });
   }, []);
 
   const clearError = useCallback(() => setError(null), []);

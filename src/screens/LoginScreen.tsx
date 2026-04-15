@@ -22,6 +22,7 @@ import { COLORS } from '../constants/colors';
 import { FontFamily } from '../constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
+import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 
 const TOTAL_STEPS = 3;
 const CURRENT_STEP = 1;
@@ -120,10 +121,13 @@ export function LoginScreen() {
     try {
       await register(name.trim(), email.trim(), password);
       router.replace('/(tabs)');
-    } catch (e: any) {
-      const msg = e?.message ?? 'Registration failed. Please try again.';
-      console.error('[Register error]', msg);
-      setApiError(msg);
+    } catch (e) {
+      const err = toApiError(e);
+      console.error('[Register error]', err.message);
+      setApiError(err.message);
+      if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
+        showApiErrorAlert(err);
+      }
     }
   };
 
@@ -142,7 +146,7 @@ export function LoginScreen() {
         >
           <AuthHeader
             title={'CREATE\nACCOUNT!'}
-            subtitle="Join Charmi today."
+            subtitle="Join Dailo today."
             height={220}
             showBackButton
             onBackPress={() => router.back()}

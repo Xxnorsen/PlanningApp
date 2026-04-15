@@ -1,7 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import {
   View,
   Text,
@@ -10,111 +8,39 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
-    Image,
-  Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+
+import { COLORS } from '../constants/colors';
+import { FontFamily } from '../constants/fonts';
+import { useAuth } from '@/context/auth-context';
+import { useTasks } from '@/context/task-context';
+import { useCategories } from '@/context/category-context';
+import { progressApi, type ProgressData } from '@/services/api/progress';
+import { showApiErrorAlert } from '@/services/api/errors';
+import type { Task, TaskPriority } from '@/types/task';
 
 const { width } = Dimensions.get('window');
-import { HeaderLottie } from '@/components/ui/header-lottie.web';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-interface TaskGroup {
-  id: string;
-  name: string;
-  taskCount: number;
-  icon: string;
-  iconBg: string;
-  iconColor: string;
-}
+const priorityBadge: Record<TaskPriority, { bg: string; color: string; icon: IoniconName }> = {
+  high:   { bg: '#FFECEE', color: '#FF4757', icon: 'flame' },
+  medium: { bg: '#FFF4E5', color: '#FFA502', icon: 'remove-circle' },
+  low:    { bg: '#E8F9EE', color: '#2ED573', icon: 'leaf' },
+};
 
-interface InProgressTask {
-  id: string;
-  category: string;
-  title: string;
-  categoryIcon: string;
-  cardBg: string;
-  iconBg: string;
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const IN_PROGRESS: InProgressTask[] = [
-  {
-    id: '1',
-    category: 'Office Project',
-    title: 'Grocery shopping app design',
-    categoryIcon: '🛍️',
-    cardBg: '#EEF0FF',
-    iconBg: '#D8DCFF',
-  },
-  {
-    id: '2',
-    category: 'Personal Project',
-    title: 'Uber Eats redesign challenge',
-    categoryIcon: '🍔',
-    cardBg: '#FFF0EE',
-    iconBg: '#FFD8D3',
-  },
-];
-
-const TASK_GROUPS: TaskGroup[] = [
-  {
-    id: '1',
-    name: 'Office Project',
-    taskCount: 23,
-    icon: '💼',
-    iconBg: '#EEF0FF',
-    iconColor: '#6B4EFF',
-  },
-  {
-    id: '2',
-    name: 'Personal Project',
-    taskCount: 30,
-    icon: '👤',
-    iconBg: '#F0F0FF',
-    iconColor: '#6B4EFF',
-  },
-  {
-    id: '3',
-    name: 'Daily Study',
-    taskCount: 30,
-    icon: '📖',
-    iconBg: '#FFF4EE',
-    iconColor: '#FF8C42',
-  },
-  {
-    id: '4',
-    name: 'Daily Study',
-    taskCount: 3,
-    icon: '📚',
-    iconBg: '#FFFBEE',
-    iconColor: '#FFB800',
-  },
-];
-
-// ─── Circular Progress ────────────────────────────────────────────────────────
+// ── Circular progress ──────────────────────────────────────────────────────
 
 const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
-  const animValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(animValue, {
-      toValue: progress,
-      duration: 1200,
-      useNativeDriver: false,
-    }).start();
-  }, []);
-
   const size = 80;
   const strokeWidth = 7;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - progress / 100);
-
+  const pct = Math.max(0, Math.min(100, progress));
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      {/* Background ring */}
       <View
         style={{
           position: 'absolute',
@@ -125,341 +51,538 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
           borderColor: 'rgba(255,255,255,0.25)',
         }}
       />
-      {/* Foreground arc — simulated with a rotated View */}
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: 'white',
-          borderTopColor: 'white',
-          borderRightColor: 'white',
-          borderBottomColor: 'transparent',
-          borderLeftColor: 'transparent',
-          transform: [{ rotate: '-45deg' }],
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: 'transparent',
-          borderTopColor: 'white',
-          borderRightColor: 'transparent',
-          borderBottomColor: 'transparent',
-          borderLeftColor: 'transparent',
-          transform: [{ rotate: '90deg' }],
-        }}
-      />
-      {/* Label */}
-      <Text style={{ color: 'white', fontWeight: '700', fontSize: 18 }}>
-        {progress}%
-      </Text>
+      {pct > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: strokeWidth,
+            borderColor: COLORS.LIME,
+            borderBottomColor: 'transparent',
+            borderLeftColor: 'transparent',
+            transform: [{ rotate: '-45deg' }],
+          }}
+        />
+      )}
+      <Text style={styles.progressPct}>{pct}%</Text>
     </View>
   );
 };
 
-// ─── In Progress Card ─────────────────────────────────────────────────────────
+// ── In Progress Card ───────────────────────────────────────────────────────
 
-const InProgressCard: React.FC<{ task: InProgressTask }> = ({ task }) => (
-  <TouchableOpacity
-    activeOpacity={0.85}
-    style={[styles.inProgressCard, { backgroundColor: task.cardBg }]}
-  >
-    <View style={styles.inProgressCardHeader}>
-      <Text style={styles.inProgressCategory}>{task.category}</Text>
-      <View style={[styles.categoryIconBadge, { backgroundColor: task.iconBg }]}>
-        <Text style={{ fontSize: 14 }}>{task.categoryIcon}</Text>
-      </View>
+interface InProgressCardProps {
+  task: Task;
+  categoryName?: string;
+  onPress: () => void;
+  onToggleDone: () => void;
+}
+
+const InProgressCard: React.FC<InProgressCardProps> = ({
+  task,
+  categoryName,
+  onPress,
+  onToggleDone,
+}) => {
+  const p = priorityBadge[task.priority];
+  return (
+    <View style={[styles.inProgressCard, { backgroundColor: COLORS.INPUT_BG }]}>
+      <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={{ gap: 10 }}>
+        <View style={styles.inProgressCardHeader}>
+          <Text style={styles.inProgressCategory} numberOfLines={1}>
+            {categoryName ?? 'General'}
+          </Text>
+          <View style={[styles.categoryIconBadge, { backgroundColor: p.bg }]}>
+            <Ionicons name={p.icon} size={14} color={p.color} />
+          </View>
+        </View>
+        <Text style={styles.inProgressTitle} numberOfLines={2}>
+          {task.title}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.doneBtn}
+        onPress={onToggleDone}
+        activeOpacity={0.85}
+        hitSlop={6}
+      >
+        <Ionicons name="checkmark" size={16} color={COLORS.DARK_TEXT} />
+        <Text style={styles.doneBtnText}>Mark done</Text>
+      </TouchableOpacity>
     </View>
-    <Text style={styles.inProgressTitle}>{task.title}</Text>
-  </TouchableOpacity>
-);
+  );
+};
 
-// ─── Task Group Row ───────────────────────────────────────────────────────────
+// ── Category Row ────────────────────────────────────────────────────────────
 
-const TaskGroupRow: React.FC<{ group: TaskGroup; delay: number }> = ({ group, delay }) => {
+interface CategoryRowProps {
+  name: string;
+  color: string;
+  taskCount: number;
+  delay: number;
+  onPress: () => void;
+}
+
+const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, taskCount, delay, onPress }) => {
   const translateY = useRef(new Animated.Value(30)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 400,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 400,
-        delay,
-        useNativeDriver: true,
-      }),
+      Animated.timing(translateY, { toValue: 0, duration: 400, delay, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 400, delay, useNativeDriver: true }),
     ]).start();
-  }, );
+  }, [delay, opacity, translateY]);
 
   return (
     <Animated.View style={{ transform: [{ translateY }], opacity }}>
-      <TouchableOpacity activeOpacity={0.8} style={styles.taskGroupRow}>
-        <View style={[styles.taskGroupIcon, { backgroundColor: group.iconBg }]}>
-          <Text style={{ fontSize: 20 }}>{group.icon}</Text>
+      <TouchableOpacity activeOpacity={0.8} style={styles.taskGroupRow} onPress={onPress}>
+        <View style={[styles.taskGroupIcon, { backgroundColor: color + '22' }]}>
+          <View style={[styles.colorDot, { backgroundColor: color }]} />
         </View>
         <View style={styles.taskGroupInfo}>
-          <Text style={styles.taskGroupName}>{group.name}</Text>
-          <Text style={styles.taskGroupCount}>{group.taskCount} Tasks</Text>
+          <Text style={styles.taskGroupName}>{name}</Text>
+          <Text style={styles.taskGroupCount}>
+            {taskCount} {taskCount === 1 ? 'Task' : 'Tasks'}
+          </Text>
         </View>
-        <Text style={styles.taskGroupChevron}>›</Text>
+        <Ionicons name="chevron-forward" size={20} color={COLORS.MUTED_ON_CARD} />
       </TouchableOpacity>
     </Animated.View>
   );
 };
 
-// ─── Bottom Tab Bar ───────────────────────────────────────────────────────────
-
-
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ── Main ────────────────────────────────────────────────────────────────────
 
 const TaskDashboard: React.FC = () => {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const { tasks, fetchAll, toggleComplete } = useTasks();
+  const { categories, fetchAll: fetchCategories } = useCategories();
+
+  const handleToggleDone = async (task: Task) => {
+    try {
+      await toggleComplete(task);
+    } catch (e) {
+      showApiErrorAlert(e);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error('[Logout error]', e);
+    }
+    router.replace('/(auth)/login');
+  };
+
+  const [progress, setProgress] = useState<ProgressData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
   const headerScale = useRef(new Animated.Value(0.95)).current;
   const headerOpacity = useRef(new Animated.Value(0)).current;
+
+  const loadAll = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    try {
+      const [, , p] = await Promise.all([
+        fetchAll().catch(() => {}),
+        fetchCategories().catch(() => {}),
+        progressApi.get().catch(() => null),
+      ]);
+      setProgress(p);
+    } finally {
+      if (isRefresh) setRefreshing(false); else setLoading(false);
+    }
+  }, [fetchAll, fetchCategories]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+    }, [loadAll])
+  );
 
   useEffect(() => {
     Animated.parallel([
       Animated.spring(headerScale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
       Animated.timing(headerOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
-  }, );
+  }, [headerOpacity, headerScale]);
+
+  const inProgressTasks = useMemo(
+    () => tasks.filter(t => t.status !== 'completed').slice(0, 6),
+    [tasks]
+  );
+
+  const categoryMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    categories.forEach(c => { m[c.id] = c.name; });
+    return m;
+  }, [categories]);
+
+  const taskCountsByCategory = useMemo(() => {
+    const counts: Record<string, number> = {};
+    tasks.forEach(t => {
+      if (t.categoryId) counts[t.categoryId] = (counts[t.categoryId] ?? 0) + 1;
+    });
+    return counts;
+  }, [tasks]);
+
+  const completionRate = progress?.completionRate ?? 0;
+  const almostDone = completionRate >= 70;
+
+  const userName = (user?.name ?? 'USER').toUpperCase();
+  const firstLetter = (user?.name?.[0] ?? 'U').toUpperCase();
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator color={COLORS.LIME} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={styles.scrollContent}
+        bounces
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadAll(true)}
+            tintColor={COLORS.LIME}
+          />
+        }
       >
-        {/* ── Top Header ── */}
-        <View style={styles.topHeader}>
-          <View style={styles.avatarRow}>
-            <View style={styles.avatar}>
-              <Text style={{ fontSize: 22 }}>👩</Text>
+        {/* ── Purple hero ── */}
+        <View style={styles.hero}>
+          <View style={styles.circleLarge} />
+          <View style={styles.circleMedium} />
+          <View style={styles.circleDot} />
+
+          <View style={styles.topHeader}>
+            <View style={styles.avatarRow}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{firstLetter}</Text>
+              </View>
+              <View>
+                <Text style={styles.helloText}>Hello!</Text>
+                <Text style={styles.userName} numberOfLines={1}>{userName}</Text>
+              </View>
             </View>
-            <View>
-              <Text style={styles.helloText}>Hello!</Text>
-              <Text style={styles.userName}>USER</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.bellBtn}
+                activeOpacity={0.85}
+                onPress={() => router.push('/categories')}
+              >
+                <Ionicons name="grid-outline" size={18} color={COLORS.DARK_TEXT} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.bellBtn}
+                activeOpacity={0.85}
+                onPress={handleLogout}
+              >
+                <Ionicons name="log-out-outline" size={18} color={COLORS.DARK_TEXT} />
+              </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity style={styles.bellBtn}>
-            <Text style={styles.bellIcon}>🔔</Text>
-          </TouchableOpacity>
-        </View>
-        
 
-        {/* ── Today Banner ── */}
-        <Animated.View style={[styles.todayBanner, { transform: [{ scale: headerScale }], opacity: headerOpacity }]}>
-          <View style={styles.todayLeft}>
-            <Text style={styles.todaySubtitle}>Your Today is</Text>
-            <Text style={styles.todayTitle}>Almost Done!</Text>
-            <TouchableOpacity style={styles.viewTasksBtn} activeOpacity={0.85}>
-              <Text style={styles.viewTasksText}>View Tasks</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.todayRight}>
-            <View style={styles.menuDots}>
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 18 }}>···</Text>
+          <Animated.View
+            style={[
+              styles.todayBanner,
+              { transform: [{ scale: headerScale }], opacity: headerOpacity },
+            ]}
+          >
+            <View style={styles.todayLeft}>
+              <Text style={styles.todaySubtitle}>Your Today is</Text>
+              <Text style={styles.todayTitle}>
+                {progress
+                  ? almostDone
+                    ? 'Almost Done!'
+                    : `${progress.pending} To Do`
+                  : 'Getting Started!'}
+              </Text>
+              <TouchableOpacity
+                style={styles.viewTasksBtn}
+                activeOpacity={0.85}
+                onPress={() => router.push('/(tabs)/planner')}
+              >
+                <Text style={styles.viewTasksText}>View Tasks</Text>
+                <View style={styles.arrowCircle}>
+                  <Ionicons name="arrow-forward" size={14} color={COLORS.DARK_TEXT} />
+                </View>
+              </TouchableOpacity>
             </View>
-            <CircularProgress progress={85} />
-          </View>
-        </Animated.View>
-
-        {/* ── In Progress ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>In Progress</Text>
-          <View style={styles.sectionBadge}>
-            <Text style={styles.sectionBadgeText}>6</Text>
-          </View>
+            <CircularProgress progress={completionRate} />
+          </Animated.View>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.inProgressScroll}
-        >
-          {IN_PROGRESS.map(task => (
-            <InProgressCard key={task.id} task={task} />
-          ))}
-        </ScrollView>
+        {/* ── White card ── */}
+        <View style={styles.card}>
+          <View style={styles.handle} />
 
-        {/* ── Task Groups ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Task Groups</Text>
-          <View style={styles.sectionBadge}>
-            <Text style={styles.sectionBadgeText}>4</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>In Progress</Text>
+            <View style={styles.sectionBadge}>
+              <Text style={styles.sectionBadgeText}>{inProgressTasks.length}</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.taskGroupsList}>
-          {TASK_GROUPS.map((group, i) => (
-            <TaskGroupRow key={group.id + i} group={group} delay={i * 80} />
-          ))}
+          {inProgressTasks.length === 0 ? (
+            <View style={styles.emptyInline}>
+              <Ionicons
+                name="checkmark-done-circle-outline"
+                size={32}
+                color={COLORS.INPUT_BORDER}
+              />
+              <Text style={styles.emptyInlineText}>Nothing in progress.</Text>
+              <TouchableOpacity
+                style={styles.emptyInlineBtn}
+                onPress={() => router.push('/(tabs)/add-task')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add" size={16} color={COLORS.DARK_TEXT} />
+                <Text style={styles.emptyInlineBtnText}>Add task</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.inProgressScroll}
+            >
+              {inProgressTasks.map(task => (
+                <InProgressCard
+                  key={task.id}
+                  task={task}
+                  categoryName={task.categoryId ? categoryMap[task.categoryId] : undefined}
+                  onPress={() => router.push(`/EditProject?id=${task.id}`)}
+                  onToggleDone={() => handleToggleDone(task)}
+                />
+              ))}
+            </ScrollView>
+          )}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Task Groups</Text>
+            <View style={styles.sectionBadge}>
+              <Text style={styles.sectionBadgeText}>{categories.length}</Text>
+            </View>
+          </View>
+
+          {categories.length === 0 ? (
+            <View style={styles.emptyInline}>
+              <Ionicons name="grid-outline" size={32} color={COLORS.INPUT_BORDER} />
+              <Text style={styles.emptyInlineText}>No categories yet.</Text>
+            </View>
+          ) : (
+            <View style={styles.taskGroupsList}>
+              {categories.map((cat, i) => (
+                <CategoryRow
+                  key={cat.id}
+                  name={cat.name}
+                  color={cat.color}
+                  taskCount={cat.taskCount ?? taskCountsByCategory[cat.id] ?? 0}
+                  delay={i * 80}
+                  onPress={() => router.push('/(tabs)/planner')}
+                />
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
-
-      
     </SafeAreaView>
   );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: {
+  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+  scroll: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+  scrollContent: { flexGrow: 1, paddingBottom: 100 },
+
+  loaderWrap: {
     flex: 1,
-    backgroundColor: '#F7F7FB',
-    marginTop:20
-
-
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.BACKGROUND,
   },
-  scroll: {
-    flex: 1,
+
+  hero: {
     paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 52,
+    position: 'relative',
+  },
+  circleLarge: {
+    position: 'absolute',
+    width: 140, height: 140, borderRadius: 70,
+    backgroundColor: COLORS.CIRCLE_LIGHT,
+    top: -30, left: -40, opacity: 0.6,
+  },
+  circleMedium: {
+    position: 'absolute',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: COLORS.CIRCLE_LIGHTER,
+    top: 20, right: -20, opacity: 0.6,
+  },
+  circleDot: {
+    position: 'absolute',
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: COLORS.LIME,
+    top: 40, right: width * 0.3,
   },
 
-  // Header
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 20,
+    marginBottom: 22,
+    zIndex: 1,
   },
-  avatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#E0D9FF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.30)',
+  },
+  avatarText: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.WHITE_TEXT,
+    fontSize: 18,
   },
   helloText: {
+    fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: '#999',
-    fontWeight: '500',
+    color: COLORS.MUTED_ON_DARK,
   },
   userName: {
+    fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    fontWeight: '800',
-    color: '#1A1A2E',
+    color: COLORS.WHITE_TEXT,
     letterSpacing: 1,
+    maxWidth: 180,
   },
   bellBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1A1A2E',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.LIME,
+    alignItems: 'center', justifyContent: 'center',
   },
-  bellIcon: {
-    fontSize: 16,
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 
-  // Today Banner
   todayBanner: {
-    backgroundColor: '#6B4EFF',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 24,
     padding: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 28,
-    shadowColor: '#6B4EFF',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    zIndex: 1,
   },
-  todayLeft: {
-    flex: 1,
-  },
+  todayLeft: { flex: 1 },
   todaySubtitle: {
-    color: 'rgba(255,255,255,0.75)',
+    fontFamily: FontFamily.REGULAR,
+    color: COLORS.MUTED_ON_DARK,
     fontSize: 13,
-    fontWeight: '500',
   },
   todayTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '800',
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.WHITE_TEXT,
+    fontSize: 22,
     marginTop: 2,
     marginBottom: 16,
+    letterSpacing: 0.3,
   },
   viewTasksBtn: {
-    backgroundColor: 'white',
-    borderRadius: 50,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    backgroundColor: COLORS.LIME,
+    borderRadius: 30,
+    paddingLeft: 18, paddingRight: 6, paddingVertical: 6,
     alignSelf: 'flex-start',
+    flexDirection: 'row', alignItems: 'center', gap: 8,
   },
   viewTasksText: {
-    color: '#6B4EFF',
-    fontWeight: '700',
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.DARK_TEXT,
     fontSize: 13,
   },
-  todayRight: {
-    alignItems: 'flex-end',
-    gap: 10,
+  arrowCircle: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  menuDots: {
-    alignSelf: 'flex-end',
+  progressPct: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.WHITE_TEXT,
+    fontSize: 18,
   },
 
-  // Section headers
+  card: {
+    backgroundColor: COLORS.CARD,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -28,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 28,
+    minHeight: 400,
+  },
+  handle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: COLORS.INPUT_BORDER,
+    alignSelf: 'center', marginBottom: 20,
+  },
+
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 14,
+    marginTop: 6,
   },
   sectionTitle: {
+    fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    fontWeight: '800',
-    color: '#1A1A2E',
+    color: COLORS.DARK_TEXT,
   },
   sectionBadge: {
-    backgroundColor: '#E8E4FF',
+    backgroundColor: COLORS.INPUT_BG,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
   sectionBadgeText: {
-    color: '#6B4EFF',
-    fontWeight: '700',
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.BACKGROUND,
     fontSize: 12,
   },
 
-  // In Progress
-  inProgressScroll: {
-    paddingRight: 20,
-    gap: 12,
-    marginBottom: 28,
-  },
+  inProgressScroll: { paddingRight: 20, gap: 12, marginBottom: 22 },
   inProgressCard: {
-    width: width * 0.45,
+    width: width * 0.5,
     borderRadius: 18,
     padding: 16,
     gap: 10,
+    borderWidth: 1,
+    borderColor: COLORS.INPUT_BORDER,
   },
   inProgressCardHeader: {
     flexDirection: 'row',
@@ -467,126 +590,92 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inProgressCategory: {
+    fontFamily: FontFamily.REGULAR,
     fontSize: 11,
-    color: '#888',
-    fontWeight: '600',
+    color: COLORS.MUTED_ON_CARD,
     flex: 1,
+    marginRight: 6,
   },
   categoryIconBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 30, height: 30, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
   },
   inProgressTitle: {
+    fontFamily: FontFamily.BOLD,
     fontSize: 14,
-    fontWeight: '700',
-    color: '#1A1A2E',
+    color: COLORS.DARK_TEXT,
     lineHeight: 20,
   },
-
-  // Task Groups
-  taskGroupsList: {
-    gap: 10,
+  doneBtn: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.LIME,
+    borderRadius: 12,
+    paddingVertical: 8,
   },
+  doneBtnText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 13,
+    color: COLORS.DARK_TEXT,
+  },
+
+  taskGroupsList: { gap: 10 },
   taskGroupRow: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.INPUT_BG,
     borderRadius: 18,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.INPUT_BORDER,
   },
   taskGroupIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 46, height: 46, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
   },
-  taskGroupInfo: {
-    flex: 1,
-  },
+  colorDot: { width: 18, height: 18, borderRadius: 9 },
+  taskGroupInfo: { flex: 1 },
   taskGroupName: {
+    fontFamily: FontFamily.BOLD,
     fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1A2E',
+    color: COLORS.DARK_TEXT,
   },
   taskGroupCount: {
+    fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: '#999',
+    color: COLORS.MUTED_ON_CARD,
     marginTop: 2,
   },
-  taskGroupChevron: {
-    fontSize: 22,
-    color: '#CCC',
-    fontWeight: '300',
-  },
 
-  // Bottom Bar
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-    backgroundColor: 'white',
+  emptyInline: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    gap: 8,
+    marginBottom: 16,
+  },
+  emptyInlineText: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: COLORS.MUTED_ON_CARD,
+  },
+  emptyInlineBtn: {
+    marginTop: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 10,
-    paddingBottom: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 10,
+    gap: 6,
+    backgroundColor: COLORS.LIME,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-  },
-  tabIcon: {
-    fontSize: 22,
-    opacity: 0.4,
-  },
-  tabIconActive: {
-    opacity: 1,
-  },
-  fabWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -20,
-  },
-  fab: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#6B4EFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#6B4EFF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  fabIcon: {
-    color: 'white',
-    fontSize: 28,
-    fontWeight: '300',
-    marginTop: -2,
+  emptyInlineBtnText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 13,
+    color: COLORS.DARK_TEXT,
   },
 });
 
