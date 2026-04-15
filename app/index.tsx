@@ -39,12 +39,14 @@ export default function WelcomeScreen() {
     ).start();
   }, []);
 
-  // Already logged in → skip intro
+  // Auto-redirect only when the app first loads from storage (isLoading: true → false).
+  // When coming back here via logout, isLoading is already false on mount so this never triggers.
+  const mountedWhileLoading = useRef(isLoading);
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (mountedWhileLoading.current && !isLoading && isAuthenticated) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isLoading, isAuthenticated]);
 
   if (isLoading) {
     return (

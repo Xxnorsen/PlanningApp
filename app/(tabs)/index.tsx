@@ -1,5 +1,6 @@
 // SCRUM-4: Task list UI to be implemented
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Pressable, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ComingSoon } from '@/components/ui/coming-soon';
@@ -10,32 +11,34 @@ export default function TasksScreen() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await logout();
-    router.replace('/(auth)/sign-in');
+    try {
+      await logout();
+    } catch (e) {
+      console.error('[Logout error]', e);
+    }
+    router.dismissAll();
+    router.replace('/');
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <Pressable style={styles.logoutBtn} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color="#fff" />
         <Text style={styles.logoutText}>Log out</Text>
-      </TouchableOpacity>
+      </Pressable>
       <ComingSoon
         title="My Tasks"
         icon="checkmark-circle-outline"
         description="Your task list is on its way. Create, manage and complete tasks all in one place."
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  safe: { flex: 1, backgroundColor: '#4A4AE8' },
   logoutBtn: {
-    position: 'absolute',
-    top: 52,
-    right: 20,
-    zIndex: 10,
+    alignSelf: 'flex-end',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -43,6 +46,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
+    marginRight: 20,
+    marginBottom: 4,
   },
-  logoutText: { color: '#fff', fontFamily: 'Fredoka_600SemiBold', fontSize: 14 },
+  logoutText: { color: '#fff', fontFamily: 'Fredoka_400Regular', fontSize: 14 },
 });
