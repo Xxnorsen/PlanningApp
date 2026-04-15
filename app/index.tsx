@@ -48,6 +48,9 @@ export default function WelcomeScreen() {
     }
   }, [isLoading, isAuthenticated]);
 
+  // Safety net: if somehow we land here while authenticated AFTER logout finishes,
+  // don't bounce. User is here intentionally (via logout or "back" to welcome).
+
   if (isLoading) {
     return (
       <View style={styles.loader}>
