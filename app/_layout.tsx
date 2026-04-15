@@ -36,6 +36,7 @@ export default function RootLayout() {
             <Stack.Screen name="task/new" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="task/[id]" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="categories/index" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="EditProject" options={{ headerShown: false }} />
           </Stack>
           <StatusBar style="light" />
         </CategoryProvider>

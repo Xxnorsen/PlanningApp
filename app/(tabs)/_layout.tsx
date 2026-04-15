@@ -1,6 +1,8 @@
 import { Tabs } from 'expo-router';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { FloatingAddButton } from '@/components/ui/floating-add-button';
+import { useRouter } from 'expo-router';
 
 export default function TabLayout() {
   return (
@@ -13,7 +15,20 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#4A4AE8',
           borderTopWidth: 0,
-          elevation: 0,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: -2,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          borderRadius: 20,
+          position: 'absolute',
+          
+          left: 20,
+          right: 20,
+          height: 60,
         },
       }}
     >
@@ -24,6 +39,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="checklist" color={color} />,
         }}
       />
+      
       <Tabs.Screen
         name="planner"
         options={{
@@ -32,12 +48,35 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="add-task"
+        options={{
+          title: '',
+          tabBarButton: (props) => {
+            const router = useRouter();
+            return (
+              <FloatingAddButton 
+                onPress={() => router.push('/add-task')} 
+              />
+            );
+          },
+        }}
+      />
+      
+      <Tabs.Screen
         name="progress"
         options={{
           title: 'Progress',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="chart.bar.fill" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="group"
+        options={{
+          title: 'group',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="group" color={color} />,
+        }}
+      />
+      
     </Tabs>
   );
 }

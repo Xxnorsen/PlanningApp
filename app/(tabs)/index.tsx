@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ComingSoon } from '@/components/ui/coming-soon';
 import { useAuth } from '@/context/auth-context';
+import TaskDashboard from '../../src/screens/TaskDashboard';
 
 export default function TasksScreen() {
   const { logout } = useAuth();
@@ -26,13 +27,15 @@ export default function TasksScreen() {
         <Ionicons name="log-out-outline" size={20} color="#fff" />
         <Text style={styles.logoutText}>Log out</Text>
       </Pressable>
-      <ComingSoon
+      {/* <ComingSoon
         title="My Tasks"
         icon="checkmark-circle-outline"
         description="Your task list is on its way. Create, manage and complete tasks all in one place."
-      />
+      /> */}
+      <TaskDashboard />
     </SafeAreaView>
   );
+
 }
 
 const styles = StyleSheet.create({
