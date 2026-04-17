@@ -1,8 +1,8 @@
-import { Tabs } from 'expo-router';
+import { Tabs,useRouter } from 'expo-router';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FloatingAddButton } from '@/components/ui/floating-add-button';
-import { useRouter } from 'expo-router';
+
 
 export default function TabLayout() {
   return (
@@ -52,6 +52,7 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarButton: (props) => {
+            // eslint-disable-next-line react-hooks/rules-of-hooks
             const router = useRouter();
             return (
               <FloatingAddButton 

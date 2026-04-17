@@ -115,7 +115,7 @@ const DeleteModal = ({ visible, onClose, onConfirm, taskTitle }: DeleteModalProp
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Delete Task?</Text>
             <Text style={styles.modalMessage}>
-              Are you sure you want to delete "{taskTitle}"?
+              Are you sure you want to delete &quot;{taskTitle}&quot;?
             </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
