@@ -17,8 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LoadingCat } from '@/components/ui/loading-cat';
 
-import { COLORS } from '@/src/constants/colors';
-import { FontFamily } from '@/src/constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { categoriesApi } from '@/services/api/categories';
 import { tasksApi } from '@/services/api/tasks';

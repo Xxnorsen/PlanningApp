@@ -17,8 +17,8 @@ import Svg, { Circle } from 'react-native-svg';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import { useFocusEffect, useRouter } from 'expo-router';
 
-import { COLORS } from '../constants/colors';
-import { FontFamily } from '../constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
@@ -31,12 +31,10 @@ const { width } = Dimensions.get('window');
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const priorityBadge: Record<TaskPriority, { bg: string; color: string; icon: IoniconName }> = {
-  high:   { bg: '#FFECEE', color: '#FF4757', icon: 'flame' },
+  high: { bg: '#FFECEE', color: '#FF4757', icon: 'flame' },
   medium: { bg: '#FFF4E5', color: '#FFA502', icon: 'remove-circle' },
-  low:    { bg: '#E8F9EE', color: '#2ED573', icon: 'leaf' },
+  low: { bg: '#E8F9EE', color: '#2ED573', icon: 'leaf' },
 };
-
-// ── Circular progress ──────────────────────────────────────────────────────
 
 const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
   const size = 80;
@@ -66,8 +64,6 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
     </View>
   );
 };
-
-// ── Celebration overlay ────────────────────────────────────────────────────────
 
 const CONFETTI_COLORS = ['#C8FF3E', '#FF4757', '#FFA502', '#2ED573', '#FF9BCC', '#1E90FF', '#6C5CE7'];
 
@@ -138,7 +134,6 @@ const CelebrationOverlay: React.FC<{ visible: boolean; onDone: () => void }> = (
   );
 };
 
-// ── In Progress Card ───────────────────────────────────────────────────────
 
 interface InProgressCardProps {
   task: Task;
@@ -183,8 +178,6 @@ const InProgressCard: React.FC<InProgressCardProps> = ({
   );
 };
 
-// ── Category Row ────────────────────────────────────────────────────────────
-
 interface CategoryRowProps {
   name: string;
   color: string;
@@ -222,8 +215,6 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, icon, taskCount,
     </Animated.View>
   );
 };
-
-// ── Main ────────────────────────────────────────────────────────────────────
 
 const TaskDashboard: React.FC = () => {
   const router = useRouter();
@@ -265,27 +256,32 @@ const TaskDashboard: React.FC = () => {
   const headerScale = useRef(new Animated.Value(0.95)).current;
   const headerOpacity = useRef(new Animated.Value(0)).current;
 
-  const loadAll = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
-    try {
-      const [, , p] = await Promise.all([
-        fetchAll().catch(() => {}),
-        fetchCategories().catch(() => {}),
-        progressApi.get().catch(() => null),
-      ]);
-      setProgress(p);
-      if (isRefresh) {
-        await rotateSticker().catch(() => {});
+  const loadAll = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      try {
+        const [, , p] = await Promise.all([
+          fetchAll().catch(() => {}),
+          fetchCategories().catch(() => {}),
+          progressApi.get().catch(() => null),
+        ]);
+        setProgress(p);
+        if (isRefresh) {
+          await rotateSticker().catch(() => {});
+        }
+      } finally {
+        if (isRefresh) setRefreshing(false);
+        else setLoading(false);
       }
-    } finally {
-      if (isRefresh) setRefreshing(false); else setLoading(false);
-    }
-  }, [fetchAll, fetchCategories, rotateSticker]);
+    },
+    [fetchAll, fetchCategories, rotateSticker],
+  );
 
   useFocusEffect(
     useCallback(() => {
       loadAll();
-    }, [loadAll])
+    }, [loadAll]),
   );
 
   useEffect(() => {
@@ -296,8 +292,8 @@ const TaskDashboard: React.FC = () => {
   }, [headerOpacity, headerScale]);
 
   const inProgressTasks = useMemo(
-    () => tasks.filter(t => t.status !== 'completed').slice(0, 6),
-    [tasks]
+    () => tasks.filter((t) => t.status !== 'completed').slice(0, 6),
+    [tasks],
   );
 
   const doneTasks = useMemo(
@@ -307,13 +303,15 @@ const TaskDashboard: React.FC = () => {
 
   const categoryMap = useMemo(() => {
     const m: Record<string, string> = {};
-    categories.forEach(c => { m[c.id] = c.name; });
+    categories.forEach((c) => {
+      m[c.id] = c.name;
+    });
     return m;
   }, [categories]);
 
   const taskCountsByCategory = useMemo(() => {
     const counts: Record<string, number> = {};
-    tasks.forEach(t => {
+    tasks.forEach((t) => {
       if (t.categoryId) counts[t.categoryId] = (counts[t.categoryId] ?? 0) + 1;
     });
     return counts;
@@ -350,7 +348,6 @@ const TaskDashboard: React.FC = () => {
           />
         }
       >
-        {/* ── Purple hero ── */}
         <View style={styles.hero}>
           <View style={styles.circleLarge} />
           <View style={styles.circleMedium} />
@@ -363,7 +360,9 @@ const TaskDashboard: React.FC = () => {
               </View>
               <View>
                 <Text style={styles.helloText}>Hello!</Text>
-                <Text style={styles.userName} numberOfLines={1}>{userName}</Text>
+                <Text style={styles.userName} numberOfLines={1}>
+                  {userName}
+                </Text>
               </View>
             </View>
             <View style={styles.headerActions}>
@@ -414,16 +413,10 @@ const TaskDashboard: React.FC = () => {
           </Animated.View>
         </View>
 
-        {/* ── White card ── */}
         <View style={styles.card}>
           <View style={styles.handle} />
 
-          {/* Session sticker — rotates on each login */}
-          <Image
-            source={stickerSource}
-            style={styles.sessionSticker}
-            resizeMode="contain"
-          />
+          <Image source={stickerSource} style={styles.sessionSticker} resizeMode="contain" />
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Events</Text>
@@ -455,12 +448,12 @@ const TaskDashboard: React.FC = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.inProgressScroll}
             >
-              {inProgressTasks.map(task => (
+              {inProgressTasks.map((task) => (
                 <InProgressCard
                   key={task.id}
                   task={task}
                   categoryName={task.categoryId ? categoryMap[task.categoryId] : undefined}
-                  onPress={() => router.push(`/EditProject?id=${task.id}`)}
+                  onPress={() => router.push(`/edit-task?id=${task.id}`)}
                   onToggleDone={() => handleToggleDone(task)}
                 />
               ))}
@@ -535,8 +528,6 @@ const TaskDashboard: React.FC = () => {
   );
 };
 
-// ── Styles ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
   scroll: { flex: 1, backgroundColor: COLORS.BACKGROUND },
@@ -557,21 +548,32 @@ const styles = StyleSheet.create({
   },
   circleLarge: {
     position: 'absolute',
-    width: 140, height: 140, borderRadius: 70,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     backgroundColor: COLORS.CIRCLE_LIGHT,
-    top: -30, left: -40, opacity: 0.6,
+    top: -30,
+    left: -40,
+    opacity: 0.6,
   },
   circleMedium: {
     position: 'absolute',
-    width: 80, height: 80, borderRadius: 40,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: COLORS.CIRCLE_LIGHTER,
-    top: 20, right: -20, opacity: 0.6,
+    top: 20,
+    right: -20,
+    opacity: 0.6,
   },
   circleDot: {
     position: 'absolute',
-    width: 14, height: 14, borderRadius: 7,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: COLORS.LIME,
-    top: 40, right: width * 0.3,
+    top: 40,
+    right: width * 0.3,
   },
 
   topHeader: {
@@ -583,10 +585,14 @@ const styles = StyleSheet.create({
   },
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: {
-    width: 46, height: 46, borderRadius: 23,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.30)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.30)',
   },
   avatarText: {
     fontFamily: FontFamily.BOLD,
@@ -606,9 +612,12 @@ const styles = StyleSheet.create({
     maxWidth: 180,
   },
   bellBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.LIME,
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerActions: {
     flexDirection: 'row',
@@ -644,9 +653,13 @@ const styles = StyleSheet.create({
   viewTasksBtn: {
     backgroundColor: COLORS.LIME,
     borderRadius: 30,
-    paddingLeft: 18, paddingRight: 6, paddingVertical: 6,
+    paddingLeft: 18,
+    paddingRight: 6,
+    paddingVertical: 6,
     alignSelf: 'flex-start',
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   viewTasksText: {
     fontFamily: FontFamily.BOLD,
@@ -654,9 +667,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   arrowCircle: {
-    width: 24, height: 24, borderRadius: 12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: 'rgba(0,0,0,0.12)',
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressPct: {
     fontFamily: FontFamily.BOLD,
@@ -676,9 +692,12 @@ const styles = StyleSheet.create({
     minHeight: 400,
   },
   handle: {
-    width: 40, height: 4, borderRadius: 2,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: COLORS.INPUT_BORDER,
-    alignSelf: 'center', marginBottom: 20,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   sessionSticker: {
     position: 'absolute',
@@ -735,8 +754,11 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   categoryIconBadge: {
-    width: 30, height: 30, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inProgressTitle: {
     fontFamily: FontFamily.BOLD,
@@ -772,8 +794,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.INPUT_BORDER,
   },
   taskGroupIcon: {
-    width: 46, height: 46, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 taskGroupInfo: { flex: 1 },
   taskGroupName: {

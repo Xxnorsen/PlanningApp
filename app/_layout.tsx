@@ -53,10 +53,10 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="task/new" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="task/[id]" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="categories/index" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="EditProject" options={{ headerShown: false }} />
-            <Stack.Screen name="create-categories" options={{ headerShown: false }} />
-            <Stack.Screen name="EditCategory" options={{ headerShown: false }} />
+            <Stack.Screen name="categories" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="create-categories" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="edit-task" options={{ headerShown: false }} />
+            <Stack.Screen name="edit-category" options={{ headerShown: false }} />
           </Stack>
           <StatusBar style="light" />
         </CategoryProvider>

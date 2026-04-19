@@ -18,8 +18,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Calendar } from 'react-native-calendars';
 import { Modal } from 'react-native';
 
-import { COLORS } from '../../src/constants/colors';
-import { FontFamily } from '../../src/constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';

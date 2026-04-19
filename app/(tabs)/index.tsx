@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
-import TaskDashboard from '../../src/screens/TaskDashboard';
-import { COLORS } from '../../src/constants/colors';
+import TaskDashboard from '@/components/task/task-dashboard';
+import { COLORS } from '@/constants/colors';
 
 export default function TasksScreen() {
   return (

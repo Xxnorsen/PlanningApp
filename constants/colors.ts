@@ -1,4 +1,4 @@
-// ─── Design System — matches the intro/welcome screen aesthetic ──────────────
+// Design system — matches the intro/welcome screen aesthetic.
 
 export const COLORS = {
   /** Main purple background — matches intro page */

@@ -17,8 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { COLORS } from '../../src/constants/colors';
-import { FontFamily } from '../../src/constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 import { plannerApi } from '@/services/api/planner';
 import { tasksApi } from '@/services/api/tasks';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
@@ -281,7 +281,7 @@ export default function PlannerScreen() {
 );
 
   const handleEdit = (id: string) => {
-    router.push(`/EditProject?id=${id}`);
+    router.push(`/edit-task?id=${id}`);
   };
 
   const handleDelete = (id: string) => {

@@ -10,8 +10,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS } from '../../src/constants/colors';
-import { FontFamily } from '../../src/constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 
 interface ComingSoonProps {
   title: string;

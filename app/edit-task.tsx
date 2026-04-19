@@ -20,8 +20,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
-import { COLORS } from '../src/constants/colors';
-import { FontFamily } from '../src/constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
 import { tasksApi } from '@/services/api/tasks';
@@ -42,7 +42,7 @@ const PRIORITY_OPTIONS: { value: TaskPriority; label: string; color: string; ico
 
 const CATEGORY_COLORS = ['#4A4AE8', '#FF9BCC', '#C8FF3E', '#FFA502', '#2ED573', '#FF4757', '#7070CC'];
 
-export default function EditProjectScreen() {
+export default function EditTaskScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { updateTask, deleteTask, toggleComplete, isLoading } = useTasks();

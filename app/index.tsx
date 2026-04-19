@@ -11,7 +11,6 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/auth-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
-import EditProject from './EditProject';
 
 
 export default function WelcomeScreen() {

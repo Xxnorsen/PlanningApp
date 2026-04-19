@@ -3,11 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { COLORS } from '../../constants/colors';
-import { FontFamily } from '../../constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 import { HeaderLottie } from '@/components/ui/header-lottie';
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface AuthHeaderProps {
   title: string;
@@ -19,8 +17,6 @@ interface AuthHeaderProps {
 
 const { width } = Dimensions.get('window');
 
-// ─── Component ───────────────────────────────────────────────────────────────
-
 export function AuthHeader({
   title,
   subtitle,
@@ -28,23 +24,19 @@ export function AuthHeader({
   showBackButton = false,
   onBackPress,
 }: AuthHeaderProps) {
-  // Respects status-bar / notch on mobile; returns 0 on web
   const insets = useSafeAreaInsets();
-  const backButtonTop = insets.top + 12; // 12 px below the safe area
+  const backButtonTop = insets.top + 12;
 
   return (
     <View style={[styles.container, { height: height + insets.top }]}>
-      {/* ── Decorative circles ── */}
       <View style={styles.circleLarge} />
       <View style={styles.circleMedium} />
       <View style={styles.circleDotLime} />
 
-      {/* Lottie animation — replaces the static pink circle */}
       <View style={styles.lottieWrapper}>
         <HeaderLottie />
       </View>
 
-      {/* ── Back button — pinned to safe area top ── */}
       {showBackButton && (
         <TouchableOpacity
           style={[styles.backButton, { top: backButtonTop }]}
@@ -58,7 +50,6 @@ export function AuthHeader({
         </TouchableOpacity>
       )}
 
-      {/* ── Bottom-left text block ── */}
       <View style={styles.content}>
         <Text style={styles.subtitle}>{subtitle}</Text>
         <Text style={styles.title}>{title}</Text>
@@ -66,8 +57,6 @@ export function AuthHeader({
     </View>
   );
 }
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -77,7 +66,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  // ── Decorative circles ──
   circleLarge: {
     position: 'absolute',
     width: 140,
@@ -114,7 +102,6 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
 
-  // ── Back button ──
   backButton: {
     position: 'absolute',
     left: 20,
@@ -131,7 +118,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.30)',
   },
 
-  // ── Text block ──
   content: {
     paddingHorizontal: 24,
     paddingBottom: 28,

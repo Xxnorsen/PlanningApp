@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
-import { COLORS } from '../../src/constants/colors';
-import { FontFamily } from '../../src/constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 
 // SCRUM-5: Task detail / edit UI to be implemented
 export default function TaskDetailScreen() {
