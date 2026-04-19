@@ -8,14 +8,15 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  UIManager,
-  ActivityIndicator,
+
   Alert,
 } from 'react-native';
+import { LoadingCat } from '@/components/ui/loading-cat';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Calendar } from 'react-native-calendars';
+import { Modal } from 'react-native';
 
 import { COLORS } from '../../src/constants/colors';
 import { FontFamily } from '../../src/constants/fonts';
@@ -24,9 +25,6 @@ import { useCategories } from '@/context/category-context';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 import type { TaskPriority } from '@/types/task';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -40,6 +38,7 @@ const CATEGORY_COLORS = ['#4A4AE8', '#FF9BCC', '#C8FF3E', '#FFA502', '#2ED573', 
 
 export default function AddTaskScreen() {
   const router = useRouter();
+  const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
   const { createTask, isLoading } = useTasks();
   const { categories, fetchAll: fetchCategories, createCategory } = useCategories();
 
@@ -47,7 +46,9 @@ export default function AddTaskScreen() {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
-  const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [dueDate, setDueDate] = useState<Date | null>(
+    dateParam ? new Date(dateParam + 'T00:00:00') : null
+  );
   const [showPicker, setShowPicker] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [error, setError] = useState('');
@@ -89,9 +90,9 @@ export default function AddTaskScreen() {
       year: 'numeric',
     });
 
-  const onDateChange = (_e: DateTimePickerEvent, selected?: Date) => {
-    if (Platform.OS === 'android') setShowPicker(false);
-    if (selected) setDueDate(selected);
+  const onDaySelect = (day: { dateString: string }) => {
+    setDueDate(new Date(day.dateString + 'T00:00:00'));
+    setShowPicker(false);
   };
 
   const toZeroTimeIso = (d: Date) =>
@@ -135,12 +136,12 @@ export default function AddTaskScreen() {
             <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={20} color={COLORS.DARK_TEXT} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>New Task</Text>
+            <Text style={styles.headerTitle}>New Event</Text>
             <View style={styles.headerBtnSpacer} />
           </View>
 
           <Text style={styles.heroSubtitle}>Let&apos;s add</Text>
-          <Text style={styles.heroTitle}>A NEW TASK</Text>
+          <Text style={styles.heroTitle}>A NEW EVENT</Text>
         </View>
 
         {/* ── White card ── */}
@@ -271,7 +272,7 @@ export default function AddTaskScreen() {
                       activeOpacity={0.85}
                     >
                       {creatingCat ? (
-                        <ActivityIndicator size="small" color={COLORS.DARK_TEXT} />
+                        <LoadingCat size={24} />
                       ) : (
                         <Ionicons name="checkmark" size={18} color={COLORS.DARK_TEXT} />
                       )}
@@ -326,18 +327,38 @@ export default function AddTaskScreen() {
               </View>
             </TouchableOpacity>
 
-            {showPicker && (
-              <DateTimePicker
-                value={dueDate ?? new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                onChange={onDateChange}
-                themeVariant="light"
-                textColor={COLORS.DARK_TEXT}
-                accentColor={COLORS.BACKGROUND}
-                style={Platform.OS === 'ios' ? styles.iosPicker : null}
-              />
-            )}
+            <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
+              <TouchableOpacity style={styles.calOverlay} activeOpacity={1} onPress={() => setShowPicker(false)}>
+                <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+                  <View style={styles.calSheet}>
+                    <Text style={styles.calTitle}>Pick a date</Text>
+                    <Calendar
+                      onDayPress={onDaySelect}
+                      markedDates={dueDate ? {
+                        [dueDate.toISOString().split('T')[0]]: { selected: true, selectedColor: COLORS.BACKGROUND },
+                      } : {}}
+                      theme={{
+                        backgroundColor: COLORS.CARD,
+                        calendarBackground: COLORS.CARD,
+                        selectedDayBackgroundColor: COLORS.BACKGROUND,
+                        selectedDayTextColor: COLORS.WHITE_TEXT,
+                        todayTextColor: COLORS.BACKGROUND,
+                        dayTextColor: COLORS.DARK_TEXT,
+                        textDisabledColor: COLORS.MUTED_ON_CARD,
+                        arrowColor: COLORS.BACKGROUND,
+                        monthTextColor: COLORS.DARK_TEXT,
+                        textDayFontFamily: FontFamily.REGULAR,
+                        textMonthFontFamily: FontFamily.BOLD,
+                        textDayHeaderFontFamily: FontFamily.BOLD,
+                      }}
+                    />
+                    <TouchableOpacity style={styles.calClearBtn} onPress={() => { setDueDate(null); setShowPicker(false); }}>
+                      <Text style={styles.calClearText}>Clear date</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </Modal>
 
             {/* Priority */}
             <Text style={[styles.labelSolo, { marginTop: 4, marginBottom: 8, marginLeft: 4 }]}>
@@ -384,10 +405,10 @@ export default function AddTaskScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color={COLORS.DARK_TEXT} />
+                <LoadingCat size={40} />
               ) : (
                 <>
-                  <Text style={styles.primaryButtonText}>Add Task</Text>
+                  <Text style={styles.primaryButtonText}>Add Event</Text>
                   <View style={styles.arrowCircle}>
                     <Ionicons name="arrow-forward" size={18} color={COLORS.DARK_TEXT} />
                   </View>
@@ -542,7 +563,6 @@ const styles = StyleSheet.create({
     minHeight: 70,
   },
   descriptionCard: { backgroundColor: '#FFFCF5' },
-  iosPicker: { backgroundColor: COLORS.CARD, borderRadius: 16, marginBottom: 12 },
 
   dropdownMenu: {
     backgroundColor: COLORS.CARD,
@@ -667,5 +687,25 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: 'rgba(0,0,0,0.10)',
     alignItems: 'center', justifyContent: 'center',
+  },
+
+  calOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  calSheet: {
+    backgroundColor: COLORS.CARD, borderRadius: 24,
+    padding: 20, width: 340,
+  },
+  calTitle: {
+    fontFamily: FontFamily.BOLD, fontSize: 17,
+    color: COLORS.DARK_TEXT, marginBottom: 12, textAlign: 'center',
+  },
+  calClearBtn: {
+    marginTop: 12, alignItems: 'center', paddingVertical: 10,
+  },
+  calClearText: {
+    fontFamily: FontFamily.REGULAR, fontSize: 14,
+    color: COLORS.MUTED_ON_CARD,
   },
 });

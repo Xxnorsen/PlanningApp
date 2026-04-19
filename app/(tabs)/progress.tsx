@@ -10,9 +10,9 @@ import {
   Dimensions,
   Animated,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LoadingCat } from '@/components/ui/loading-cat';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { COLORS } from '@/src/constants/colors';
@@ -427,13 +427,7 @@ console.log('todayPlan tasks:', todayPlan.tasks.map(task => ({
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.loaderWrap}>
-          <Animated.View style={{ transform: [{ scale: headerScale }], opacity: headerOpacity }}>
-            <View style={styles.hero}>
-              <View style={styles.circleLarge} />
-              <View style={styles.circleMedium} />
-              <View style={styles.circleDot} />
-            </View>
-          </Animated.View>
+          <LoadingCat size={120} />
         </View>
       </SafeAreaView>
     );

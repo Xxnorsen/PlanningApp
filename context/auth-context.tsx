@@ -20,6 +20,7 @@ interface AuthContextValue {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  updateUser: (updates: Partial<Pick<User, 'name' | 'avatarUri'>>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -109,6 +110,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback(async (updates: Partial<Pick<User, 'name' | 'avatarUri'>>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...updates };
+      if ('avatarUri' in updates && updates.avatarUri === undefined) {
+        delete updated.avatarUri;
+      }
+      storage.set(STORAGE_KEYS.USER, updated);
+      return updated;
+    });
+  }, []);
+
   // Register once: any 401 from the API → clear session.
   // AuthGate in app/_layout.tsx then redirects to /(auth)/login.
   const logoutRef = useRef(logout);
@@ -135,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         clearError,
+        updateUser,
       }}
     >
       {children}

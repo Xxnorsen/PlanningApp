@@ -21,7 +21,7 @@ const MAPPING = {
   'xmark': 'close',
   'trash': 'delete',
   'pencil': 'edit',
-  'group': 'group',
+  'person.fill': 'person',
 } as IconMapping;
 
 export function IconSymbol({

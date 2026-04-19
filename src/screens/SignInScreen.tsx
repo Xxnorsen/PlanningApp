@@ -19,7 +19,6 @@ import { useRouter } from 'expo-router';
 
 import { AuthHeader } from '../components/auth/AuthHeader';
 import { InputField } from '../components/auth/InputField';
-import { SocialButton } from '../components/auth/SocialButton';
 import { COLORS } from '../constants/colors';
 import { FontFamily } from '../constants/fonts';
 import { useAuth } from '@/context/auth-context';
@@ -190,19 +189,6 @@ export function SignInScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or continue with</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Social */}
-            <View style={styles.socialRow}>
-              <SocialButton provider="google" />
-              <SocialButton provider="apple" />
-            </View>
-
             {/* Register link */}
             <View style={styles.bottomRow}>
               <Text style={styles.bottomMuted}>Don't have an account? </Text>
@@ -279,7 +265,7 @@ const styles = StyleSheet.create({
     height: 56, borderRadius: 30,
     backgroundColor: COLORS.LIME,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    marginBottom: 28,
+    marginBottom: 36,
     shadowColor: COLORS.BACKGROUND, shadowOpacity: 0.25,
     shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
@@ -293,12 +279,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.10)',
     alignItems: 'center', justifyContent: 'center',
   },
-
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-  dividerLine: { flex: 1, height: 1.5, backgroundColor: COLORS.INPUT_BORDER, borderRadius: 1 },
-  dividerText: { fontFamily: FontFamily.REGULAR, fontSize: 12, color: COLORS.MUTED_ON_CARD },
-
-  socialRow: { flexDirection: 'row', gap: 12, marginBottom: 28 },
 
   bottomRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   bottomMuted: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD },

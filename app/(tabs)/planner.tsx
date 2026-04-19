@@ -7,9 +7,11 @@ import {
   StyleSheet,
   Modal,
   StatusBar,
-  ActivityIndicator,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
+import { Calendar } from 'react-native-calendars';
+import { LoadingCat } from '@/components/ui/loading-cat';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -113,7 +115,7 @@ const DeleteModal = ({ visible, onClose, onConfirm, taskTitle }: DeleteModalProp
         </View>
         <View style={styles.modalCard}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Delete Task?</Text>
+            <Text style={styles.modalTitle}>Delete Event?</Text>
             <Text style={styles.modalMessage}>
               Are you sure you want to delete &quot;{taskTitle}&quot;?
             </Text>
@@ -225,6 +227,8 @@ export default function PlannerScreen() {
   const [error, setError] = useState('');
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [calPickedDate, setCalPickedDate] = useState<string | null>(null);
   
   
   const loadDay = useCallback(async (date: Date, isRefresh = false) => {
@@ -337,8 +341,8 @@ export default function PlannerScreen() {
   });
 
   const headerLabel = isSameDay(selectedDate, today)
-    ? "Today's Tasks"
-    : `${WEEKDAYS[selectedDate.getDay()]}'s Tasks`;
+    ? "Today's Events"
+    : `${WEEKDAYS[selectedDate.getDay()]}'s Events`;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -353,12 +357,9 @@ export default function PlannerScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerBtn}
-            onPress={() => {
-              setAnchorDate(today);
-              setSelectedDate(today);
-            }}
+            onPress={() => { setCalPickedDate(null); setCalendarVisible(true); }}
           >
-            <Ionicons name="today-outline" size={18} color={COLORS.DARK_TEXT} />
+            <Ionicons name="calendar-outline" size={18} color={COLORS.DARK_TEXT} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{headerLabel}</Text>
           <TouchableOpacity style={styles.headerBtn} onPress={() => loadDay(selectedDate, true)}>
@@ -427,8 +428,8 @@ export default function PlannerScreen() {
         </ScrollView>
 
         {loading ? (
-          <View style={styles.emptyState}>
-            <ActivityIndicator color={COLORS.BACKGROUND} size="large" />
+          <View style={styles.centerLoader}>
+            <LoadingCat size={100} />
           </View>
         ) : error ? (
           <View style={styles.emptyState}>
@@ -461,13 +462,13 @@ export default function PlannerScreen() {
                   size={48}
                   color={COLORS.INPUT_BORDER}
                 />
-                <Text style={styles.emptyText}>No tasks for this day.</Text>
+                <Text style={styles.emptyText}>No events for this day.</Text>
                 <TouchableOpacity
                   style={styles.retryBtn}
                   onPress={() => router.push('/(tabs)/add-task')}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.retryText}>Add Task</Text>
+                  <Text style={styles.retryText}>Add Event</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -492,6 +493,106 @@ export default function PlannerScreen() {
         onConfirm={confirmDelete}
         taskTitle={taskToDelete?.title ?? ''}
       />
+
+      {/* ── Full Calendar Modal ── */}
+      <Modal visible={calendarVisible} animationType="slide" transparent onRequestClose={() => setCalendarVisible(false)}>
+        <View style={styles.calOverlay}>
+          <View style={styles.calSheet}>
+            <View style={styles.calHandle} />
+
+            <View style={styles.calHeader}>
+              <Text style={styles.calTitle}>Pick a Date</Text>
+              <TouchableOpacity onPress={() => setCalendarVisible(false)} style={styles.calClose}>
+                <Ionicons name="close" size={20} color={COLORS.DARK_TEXT} />
+              </TouchableOpacity>
+            </View>
+
+            <Calendar
+              current={calPickedDate ?? toIsoDate(selectedDate)}
+              onDayPress={(day: { dateString: string }) => setCalPickedDate(day.dateString)}
+              markedDates={{
+                ...(calPickedDate
+                  ? { [calPickedDate]: { selected: true, selectedColor: COLORS.BACKGROUND } }
+                  : { [toIsoDate(selectedDate)]: { selected: true, selectedColor: COLORS.BACKGROUND } }),
+                [toIsoDate(today)]: (calPickedDate === toIsoDate(today) || (!calPickedDate && isSameDay(selectedDate, today)))
+                  ? { selected: true, selectedColor: COLORS.BACKGROUND }
+                  : { marked: true, dotColor: COLORS.LIME },
+              }}
+              theme={{
+                backgroundColor: COLORS.CARD,
+                calendarBackground: COLORS.CARD,
+                todayTextColor: COLORS.BACKGROUND,
+                selectedDayBackgroundColor: COLORS.BACKGROUND,
+                selectedDayTextColor: '#fff',
+                dayTextColor: COLORS.DARK_TEXT,
+                textDisabledColor: COLORS.INPUT_BORDER,
+                monthTextColor: COLORS.DARK_TEXT,
+                arrowColor: COLORS.BACKGROUND,
+                textDayFontFamily: FontFamily.REGULAR,
+                textMonthFontFamily: FontFamily.BOLD,
+                textDayHeaderFontFamily: FontFamily.BOLD,
+                textDayFontSize: 15,
+                textMonthFontSize: 17,
+                textDayHeaderFontSize: 12,
+                dotColor: COLORS.LIME,
+                'stylesheet.calendar.header': {
+                  week: { marginTop: 8, flexDirection: 'row', justifyContent: 'space-around' },
+                },
+              }}
+            />
+
+            {/* Action buttons */}
+            <View style={styles.calActions}>
+              <TouchableOpacity
+                style={styles.calSecondaryBtn}
+                onPress={() => {
+                  setSelectedDate(today);
+                  setAnchorDate(today);
+                  setCalPickedDate(null);
+                  setCalendarVisible(false);
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="today-outline" size={16} color={COLORS.BACKGROUND} />
+                <Text style={styles.calSecondaryBtnText}>Today</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.calViewBtn}
+                onPress={() => {
+                  const target = calPickedDate ? new Date(calPickedDate + 'T00:00:00') : selectedDate;
+                  setSelectedDate(target);
+                  setAnchorDate(target);
+                  setCalPickedDate(null);
+                  setCalendarVisible(false);
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="list-outline" size={16} color={COLORS.DARK_TEXT} />
+                <Text style={styles.calViewBtnText}>View Day</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.calAddBtn}
+                onPress={() => {
+                  const target = calPickedDate ?? toIsoDate(selectedDate);
+                  const targetDate = new Date(target + 'T00:00:00');
+                  setSelectedDate(targetDate);
+                  setAnchorDate(targetDate);
+                  setCalPickedDate(null);
+                  setCalendarVisible(false);
+                  router.push({ pathname: '/add-task', params: { date: target } });
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add" size={18} color={COLORS.DARK_TEXT} />
+                <Text style={styles.calAddBtnText}>Add Event</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -739,6 +840,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
+  centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  calOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  calSheet: {
+    backgroundColor: COLORS.CARD,
+    borderTopLeftRadius: 32, borderTopRightRadius: 32,
+    paddingBottom: 36, overflow: 'hidden',
+  },
+  calHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: COLORS.INPUT_BORDER, alignSelf: 'center', marginTop: 12, marginBottom: 4,
+  },
+  calHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 12,
+  },
+  calTitle: { fontFamily: FontFamily.BOLD, fontSize: 18, color: COLORS.DARK_TEXT },
+  calClose: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: COLORS.INPUT_BG, alignItems: 'center', justifyContent: 'center',
+  },
+  calActions: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginTop: 16 },
+
+  calSecondaryBtn: {
+    flex: 1, height: 48, borderRadius: 24, borderWidth: 1.5,
+    borderColor: COLORS.BACKGROUND, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
+  calSecondaryBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND },
+
+  calViewBtn: {
+    flex: 1.2, height: 48, borderRadius: 24,
+    backgroundColor: COLORS.INPUT_BG, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
+  calViewBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.DARK_TEXT },
+
+  calAddBtn: {
+    flex: 1.5, height: 48, borderRadius: 24,
+    backgroundColor: COLORS.LIME, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
+  calAddBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.DARK_TEXT },
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12, paddingHorizontal: 20 },
   emptyText: {
     fontFamily: FontFamily.REGULAR,

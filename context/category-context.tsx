@@ -34,20 +34,43 @@ export function CategoryProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchAll = useCallback(() =>
-    run(async () => { setCategories(await categoriesApi.getAll()); }), []);
+    run(async () => {
+      const fresh = await categoriesApi.getAll();
+      setCategories((prev) => fresh.map((cat) => {
+        const existing = prev.find((c) => c.id === cat.id);
+        return {
+          ...cat,
+          color: cat.color || existing?.color || '#4A4AE8',
+          icon: cat.icon || existing?.icon,
+        };
+      }));
+    }), []);
 
   const createCategory = useCallback((payload: CreateCategoryPayload) =>
     run(async () => {
       const cat = await categoriesApi.create(payload);
-      setCategories((prev) => [...prev, cat]);
-      return cat;
+      const merged = {
+        ...cat,
+        color: cat.color || payload.color,
+        icon: cat.icon || payload.icon,
+      };
+      setCategories((prev) => [...prev, merged]);
+      return merged;
     }), []);
 
   const updateCategory = useCallback((id: string, payload: Partial<CreateCategoryPayload>) =>
     run(async () => {
       const updated = await categoriesApi.update(id, payload);
-      setCategories((prev) => prev.map((c) => (c.id === id ? updated : c)));
-      return updated;
+      // Merge payload into API response so color/icon are always applied
+      // even if the backend doesn't echo them back
+      const merged = {
+        ...updated,
+        ...(payload.color !== undefined && { color: payload.color }),
+        ...(payload.icon !== undefined && { icon: payload.icon }),
+        ...(payload.name !== undefined && { name: payload.name }),
+      };
+      setCategories((prev) => prev.map((c) => (c.id === id ? merged : c)));
+      return merged;
     }), []);
 
   const deleteCategory = useCallback((id: string) =>

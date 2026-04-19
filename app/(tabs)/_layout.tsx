@@ -2,6 +2,7 @@ import { Tabs,useRouter } from 'expo-router';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FloatingAddButton } from '@/components/ui/floating-add-button';
+import { Ionicons } from '@expo/vector-icons';
 
 
 export default function TabLayout() {
@@ -35,7 +36,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tasks',
+          title: 'Events',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="checklist" color={color} />,
         }}
       />
@@ -73,8 +74,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="group"
         options={{
-          title: 'group',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="group" color={color} />,
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
         }}
       />
       

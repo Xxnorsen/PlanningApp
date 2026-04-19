@@ -34,9 +34,9 @@ export const categoriesApi = {
     return normalizeCategory(data);
   },
 
-  /** PUT /categories/{id} */
+  /** PUT /categories/{id}/ */
   update: async (id: string, payload: Partial<CreateCategoryPayload>): Promise<Category> => {
-    const { data } = await apiClient.put<RawCategory>(`/categories/${id}`, payload);
+    const { data } = await apiClient.put<RawCategory>(`/categories/${id}/`, payload);
     return normalizeCategory(data);
   },
 

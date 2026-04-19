@@ -1,629 +1,542 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
-  Animated,
+  Alert,
+  Switch,
+  Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 
 import { COLORS } from '@/src/constants/colors';
 import { FontFamily } from '@/src/constants/fonts';
 import { useAuth } from '@/context/auth-context';
-import { categoriesApi } from '@/services/api/categories';
-import { tasksApi } from '@/services/api/tasks';
-import type { Category } from '@/types/category';
-import type { Task } from '@/types/task';
+import { apiClient } from '@/services/api/client';
 
-const { width } = Dimensions.get('window');
+// ── Small reusable components ─────────────────────────────────────────────────
 
-// ── Category Card Component ─────────────────────────────────────────────────────
-
-interface CategoryCardProps {
-  category: Category;
-  taskCount: number;
-  projectCount: number;
-  progress: number;
-  onPress: () => void;
-  onEdit: (category: Category) => void;
+function SectionHeader({ title }: { title: string }) {
+  return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
-const CategoryCard: React.FC<CategoryCardProps> = ({ 
-  category, 
-  taskCount, 
-  projectCount, 
-  progress, 
+function SettingRow({
+  icon,
+  label,
   onPress,
-  onEdit
-}) => {
-  const getIconName = (categoryName: string) => {
-    const name = categoryName.toLowerCase();
-    if (name.includes('work')) return 'laptop-outline';
-    if (name.includes('fitness')) return 'fitness-outline';
-    if (name.includes('grocer')) return 'cart-outline';
-    if (name.includes('study')) return 'book-outline';
-    return 'folder-outline';
-  };
-
-  const getSecondaryIcon = (categoryName: string) => {
-    const name = categoryName.toLowerCase();
-    if (name.includes('work')) return 'settings-outline';
-    if (name.includes('fitness')) return 'create-outline';
-    if (name.includes('grocer')) return 'settings-outline';
-    if (name.includes('study')) return 'create-outline';
-    return 'ellipsis-horizontal-outline';
-  };
-
-  const getProgressColor = (progress: number) => {
-    if (progress >= 75) return COLORS.LIME;
-    if (progress >= 50) return '#FFA502';
-    if (progress >= 25) return '#FF6B6B';
-    return '#FF4757';
-  };
-
+  danger,
+  right,
+}: {
+  icon: string;
+  label: string;
+  onPress?: () => void;
+  danger?: boolean;
+  right?: React.ReactNode;
+}) {
   return (
-    <TouchableOpacity
-      style={styles.categoryCard}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <View style={styles.categoryHeader}>
-        <View style={styles.categoryIcons}>
-          <View style={styles.categoryIcon}>
-            <Ionicons 
-              name={getIconName(category.name)} 
-              size={20} 
-              color={COLORS.DARK_TEXT} 
-            />
-          </View>
-          <TouchableOpacity
-            style={styles.editIcon}
-            onPress={() => onEdit(category)}
-            activeOpacity={0.8}
-          >
-            <Ionicons 
-              name="settings-outline" 
-              size={16} 
-              color={COLORS.MUTED_ON_CARD} 
-            />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.progressCircle}>
-          <View style={[
-            styles.progressRing,
-            { borderColor: getProgressColor(progress) }
-          ]}>
-            <Text style={styles.progressText}>{progress}%</Text>
-          </View>
-        </View>
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
+      <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
+        <Ionicons name={icon as any} size={18} color={danger ? '#FF4757' : COLORS.BACKGROUND} />
       </View>
-      
-      <Text style={styles.categoryName}>{category.name}</Text>
-      <Text style={styles.categoryStats}>
-        {taskCount} {taskCount === 1 ? 'Task' : 'Tasks'}
-      </Text>
+      <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
+      {right ?? (onPress && !danger
+        ? <Ionicons name="chevron-forward" size={16} color={COLORS.MUTED_ON_CARD} />
+        : null)}
     </TouchableOpacity>
   );
-};
+}
 
-// ── Main Group Screen Component ───────────────────────────────────────────────
+// ── Main screen ───────────────────────────────────────────────────────────────
 
-export default function GroupScreen() {
+export default function ProfileScreen() {
+  const { user, logout, updateUser } = useAuth();
   const router = useRouter();
-  const { user } = useAuth();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  const userName = (user?.name ?? 'User').toUpperCase();
-  const firstLetter = (user?.name?.[0] ?? 'U').toUpperCase();
 
-  const stickerSources = [
-    require('@/assets/stickers/cat1.png'),
-    require('@/assets/stickers/cat2.png'),
-    require('@/assets/stickers/cat3.png'),
-    require('@/assets/stickers/halloween.png'),
-  ];
-  const stickerSource = stickerSources[0]; // Use first cat for group page
+  const [notifications, setNotifications] = useState(true);
 
-  const headerScale = useRef(new Animated.Value(0.95)).current;
-  const headerOpacity = useRef(new Animated.Value(0)).current;
+  // Edit profile modal
+  const [editVisible, setEditVisible] = useState(false);
+  const [editName, setEditName] = useState(user?.name ?? '');
+  const [savingName, setSavingName] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [cats, tsks] = await Promise.all([
-        categoriesApi.getAll().catch(() => []),
-        tasksApi.getAll().catch(() => []),
-      ]);
-      setCategories(cats);
-      setTasks(tsks);
-    } finally {
-      setLoading(false);
+  // Change password modal
+  const [pwVisible, setPwVisible] = useState(false);
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [savingPw, setSavingPw] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [currentPwError, setCurrentPwError] = useState('');
+  const [newPwError, setNewPwError] = useState('');
+  const [confirmPwError, setConfirmPwError] = useState('');
+
+  // Real-time hints
+  const newPwHint = newPw.length > 0 && newPw === currentPw
+    ? 'New password must be different from current.' : '';
+  const confirmHint = confirmPw.length > 0 && newPw !== confirmPw
+    ? 'Passwords do not match.' : '';
+
+  const initials = user?.name
+    ? user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
+  // ── Avatar picker ────────────────────────────────────────────────────────────
+
+  const pickAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      return;
     }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(headerScale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
-      Animated.timing(headerOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-    ]).start();
-  }, [headerOpacity, headerScale]);
-
-  // Calculate stats for each category
-  const getCategoryStats = (categoryId: string) => {
-    const categoryTasks = tasks.filter(task => task.categoryId === categoryId);
-    const completedTasks = categoryTasks.filter(task => task.status === 'completed');
-    const progress = categoryTasks.length > 0 
-      ? Math.round((completedTasks.length / categoryTasks.length) * 100)
-      : 0;
-    
-    // For demo purposes, simulate project counts
-    const projectCount = Math.floor(Math.random() * 5) + 1;
-    
-    return {
-      taskCount: categoryTasks.length,
-      projectCount,
-      progress
-    };
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      await updateUser({ avatarUri: result.assets[0].uri });
+    }
   };
 
-  // Filter categories based on search
-  const filteredCategories = categories.filter(category =>
-    category.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleAvatarPress = () => {
+    if (user?.avatarUri) {
+      Alert.alert('Profile Photo', 'What would you like to do?', [
+        { text: 'Change Photo', onPress: pickAvatar },
+        {
+          text: 'Remove Photo',
+          style: 'destructive',
+          onPress: () => updateUser({ avatarUri: undefined }),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    } else {
+      pickAvatar();
+    }
+  };
 
-  const displayCategories = filteredCategories;
+  // ── Save name ────────────────────────────────────────────────────────────────
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.loaderWrap}>
-          <Animated.View style={{ transform: [{ scale: headerScale }], opacity: headerOpacity }}>
-            <View style={styles.hero}>
-              <View style={styles.circleLarge} />
-              <View style={styles.circleMedium} />
-              <View style={styles.circleDot} />
-            </View>
-          </Animated.View>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const saveName = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      Alert.alert('Error', 'Name cannot be empty.');
+      return;
+    }
+    setSavingName(true);
+    try {
+      await updateUser({ name: trimmed });
+      setEditVisible(false);
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  // ── Change password ──────────────────────────────────────────────────────────
+
+  const savePassword = async () => {
+    setCurrentPwError(''); setNewPwError(''); setConfirmPwError('');
+    let valid = true;
+    if (!currentPw) { setCurrentPwError('Enter your current password.'); valid = false; }
+    if (newPw.length < 6) { setNewPwError('Must be at least 6 characters.'); valid = false; }
+    else if (newPw === currentPw) { setNewPwError('New password must be different from current.'); valid = false; }
+    if (newPw !== confirmPw) { setConfirmPwError('Passwords do not match.'); valid = false; }
+    if (!valid) return;
+
+    setSavingPw(true);
+    try {
+      await apiClient.put('/auth/change-password', {
+        current_password: currentPw,
+        new_password: newPw,
+      });
+      setPwSuccess(true);
+      setCurrentPw(''); setNewPw(''); setConfirmPw('');
+    } catch {
+      setCurrentPwError('Wrong password. Please try again.');
+    } finally {
+      setSavingPw(false);
+    }
+  };
+
+  const closePwModal = () => {
+    setPwVisible(false);
+    setPwSuccess(false);
+    setCurrentPwError(''); setNewPwError(''); setConfirmPwError('');
+    setCurrentPw(''); setNewPw(''); setConfirmPw('');
+  };
+
+  // ── Logout ───────────────────────────────────────────────────────────────────
+
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out', style: 'destructive',
+        onPress: async () => {
+          await logout();
+          router.replace('/(auth)/login');
+        },
+      },
+    ]);
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        bounces
-      >
-        {/* ── Purple hero with background and cat ── */}
-        <View style={styles.hero}>
-          <View style={styles.circleLarge} />
-          <View style={styles.circleMedium} />
-          <View style={styles.circleDot} />
 
-          <View style={styles.topHeader}>
-            <View style={styles.avatarRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{firstLetter}</Text>
-              </View>
-              <View>
-                <Text style={styles.helloText}>Hello!</Text>
-                <Text style={styles.userName} numberOfLines={1}>{userName}</Text>
-              </View>
+      {/* ── Purple hero ── */}
+      <View style={styles.hero}>
+        <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8} style={styles.avatarWrap}>
+          {user?.avatarUri ? (
+            <Image source={{ uri: user.avatarUri }} style={styles.avatarImg} contentFit="cover" />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
             </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.bellBtn}
-                activeOpacity={0.85}
-                onPress={() => router.push('/categories')}
-              >
-                <Ionicons name="grid-outline" size={18} color={COLORS.DARK_TEXT} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.bellBtn}
-                activeOpacity={0.85}
-                onPress={() => router.push('/(tabs)/planner')}
-              >
-                <Ionicons name="arrow-forward" size={18} color={COLORS.DARK_TEXT} />
-              </TouchableOpacity>
-            </View>
+          )}
+          <View style={styles.cameraBtn}>
+            <Ionicons name="camera" size={14} color={COLORS.DARK_TEXT} />
           </View>
+        </TouchableOpacity>
+        <Text style={styles.heroName}>{user?.name ?? '—'}</Text>
+        <Text style={styles.heroEmail}>{user?.email ?? '—'}</Text>
+      </View>
 
-          {/* Cat animation with boxes */}
-          <Animated.View
-            style={[
-              styles.catContainer,
-              { transform: [{ scale: headerScale }], opacity: headerOpacity },
-            ]}
-          >
-            <Image
-              source={stickerSource}
-              style={styles.catImage}
-              resizeMode="contain"
-            />
-            <View style={styles.boxesContainer}>
-              <View style={[styles.box, styles.workBox]}>
-                <Text style={styles.boxText}>Work</Text>
-              </View>
-              <View style={[styles.box, styles.fitnessBox]}>
-                <Text style={styles.boxText}>Fitness</Text>
-              </View>
-              <View style={[styles.box, styles.groceriesBox]}>
-                <Text style={styles.boxText}>Groceries</Text>
-              </View>
-            </View>
-          </Animated.View>
-        </View>
+      {/* ── Settings list ── */}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* ── White card with categories ── */}
+        <SectionHeader title="Account" />
         <View style={styles.card}>
-          <View style={styles.handle} />
-
-          <Text style={styles.sectionTitle}>All Task Categories</Text>
-          
-          <View style={styles.searchContainer}>
-            <Ionicons 
-              name="search-outline" 
-              size={20} 
-              color={COLORS.MUTED_ON_CARD} 
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Find categories..."
-              placeholderTextColor={COLORS.MUTED_ON_CARD}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-
-          <Text style={styles.categoryCount}>
-            total categories: {displayCategories.length}
-          </Text>
-
-          <View style={styles.categoriesList}>
-            {displayCategories.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons 
-                  name="list-outline" 
-                  size={64} 
-                  color={COLORS.INPUT_BORDER} 
-                />
-                <Text style={styles.emptyStateText}>
-                  Your to-do list is looking suspiciously clear... almost too clear. Time to stir up some trouble!
-                </Text>
-              </View>
-            ) : (
-              displayCategories.map((category) => {
-                const stats = getCategoryStats(category.id);
-                return (
-                  <CategoryCard
-                    key={category.id}
-                    category={category}
-                    taskCount={stats.taskCount}
-                    projectCount={stats.projectCount}
-                    progress={stats.progress}
-                    onPress={() => router.push('/(tabs)/planner' as any)}
-                    onEdit={(category) => router.push(`/EditCategory?id=${category.id}` as any)}
-                  />
-                );
-              })
-            )}
-          </View>
-
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.manageButton]}
-              onPress={() => router.push('/(tabs)/planner' as any)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.manageButtonText}>Manage Categories</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.actionButton, styles.createButton]}
-              onPress={() => router.push('/create-categories')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.createButtonText}>Create New categories</Text>
-            </TouchableOpacity>
-          </View>
+          <SettingRow icon="person-outline" label="Edit Profile" onPress={() => { setEditName(user?.name ?? ''); setEditVisible(true); }} />
+          <View style={styles.divider} />
+          <SettingRow icon="lock-closed-outline" label="Change Password" onPress={() => setPwVisible(true)} />
         </View>
+
+        <SectionHeader title="Preferences" />
+        <View style={styles.card}>
+          <SettingRow
+            icon="notifications-outline"
+            label="Push Notifications"
+            right={
+              <Switch
+                value={notifications}
+                onValueChange={setNotifications}
+                trackColor={{ false: COLORS.INPUT_BORDER, true: COLORS.LIME }}
+                thumbColor={COLORS.DARK_TEXT}
+              />
+            }
+          />
+        </View>
+
+        <SectionHeader title="About" />
+        <View style={styles.card}>
+          <SettingRow icon="document-text-outline" label="Terms of Service" onPress={() => router.push('/(auth)/terms')} />
+          <View style={styles.divider} />
+          <SettingRow icon="shield-checkmark-outline" label="Privacy Policy" onPress={() => router.push('/(auth)/privacy')} />
+          <View style={styles.divider} />
+          <SettingRow icon="information-circle-outline" label="Version 1.0.0" />
+        </View>
+
+        <SectionHeader title="" />
+        <View style={styles.card}>
+          <SettingRow icon="log-out-outline" label="Sign Out" danger onPress={handleLogout} />
+        </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* ── Edit Profile Modal ── */}
+      <Modal visible={editVisible} animationType="slide" transparent onRequestClose={() => setEditVisible(false)}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+
+            {/* Avatar inside modal */}
+            <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8} style={styles.modalAvatarWrap}>
+              {user?.avatarUri ? (
+                <Image source={{ uri: user.avatarUri }} style={styles.modalAvatarImg} contentFit="cover" />
+              ) : (
+                <View style={styles.modalAvatar}>
+                  <Text style={styles.modalAvatarText}>{initials}</Text>
+                </View>
+              )}
+              <View style={styles.cameraBtn}>
+                <Ionicons name="camera" size={14} color={COLORS.DARK_TEXT} />
+              </View>
+            </TouchableOpacity>
+            <View style={styles.photoActions}>
+              <TouchableOpacity style={styles.photoActionBtn} onPress={pickAvatar} activeOpacity={0.7}>
+                <Ionicons name="image-outline" size={16} color={COLORS.BACKGROUND} />
+                <Text style={styles.photoActionText}>Change Photo</Text>
+              </TouchableOpacity>
+              {user?.avatarUri ? (
+                <TouchableOpacity
+                  style={[styles.photoActionBtn, styles.photoRemoveBtn]}
+                  onPress={() => updateUser({ avatarUri: undefined })}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#FF4757" />
+                  <Text style={[styles.photoActionText, { color: '#FF4757' }]}>Remove Photo</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <Text style={styles.inputLabel}>Full Name</Text>
+            <TextInput
+              style={styles.input}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your name"
+              placeholderTextColor={COLORS.MUTED_ON_CARD}
+              autoFocus
+            />
+
+            <TouchableOpacity style={styles.primaryBtn} onPress={saveName} disabled={savingName} activeOpacity={0.85}>
+              {savingName
+                ? <ActivityIndicator color={COLORS.DARK_TEXT} />
+                : <Text style={styles.primaryBtnText}>Save Changes</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditVisible(false)} activeOpacity={0.7}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Change Password Modal ── */}
+      <Modal visible={pwVisible} animationType="slide" transparent onRequestClose={closePwModal}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Change Password</Text>
+
+            {pwSuccess ? (
+              <>
+                <View style={styles.successBanner}>
+                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                  <Text style={styles.bannerText}>Password updated successfully!</Text>
+                </View>
+                <TouchableOpacity style={styles.primaryBtn} onPress={closePwModal} activeOpacity={0.85}>
+                  <Text style={styles.primaryBtnText}>Done</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {/* Current Password */}
+                <Text style={styles.inputLabel}>Current Password</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }, !!currentPwError && styles.inputError]}
+                    value={currentPw}
+                    onChangeText={(v) => { setCurrentPw(v); setCurrentPwError(''); }}
+                    placeholder="Enter current password"
+                    placeholderTextColor={COLORS.MUTED_ON_CARD}
+                    secureTextEntry={!showCurrent}
+                  />
+                  <TouchableOpacity onPress={() => setShowCurrent(v => !v)} style={styles.eyeBtn}>
+                    <Ionicons name={showCurrent ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.MUTED_ON_CARD} />
+                  </TouchableOpacity>
+                </View>
+                {currentPwError ? (
+                  <View style={styles.fieldHint}>
+                    <Ionicons name="alert-circle" size={14} color="#FF4757" />
+                    <Text style={styles.fieldHintText}>{currentPwError}</Text>
+                  </View>
+                ) : null}
+
+                {/* New Password */}
+                <Text style={[styles.inputLabel, { marginTop: 12 }]}>New Password</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }, (!!newPwError || !!newPwHint) && styles.inputError]}
+                    value={newPw}
+                    onChangeText={(v) => { setNewPw(v); setNewPwError(''); }}
+                    placeholder="Min. 6 characters"
+                    placeholderTextColor={COLORS.MUTED_ON_CARD}
+                    secureTextEntry={!showNew}
+                  />
+                  <TouchableOpacity onPress={() => setShowNew(v => !v)} style={styles.eyeBtn}>
+                    <Ionicons name={showNew ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.MUTED_ON_CARD} />
+                  </TouchableOpacity>
+                </View>
+                {(newPwError || newPwHint) ? (
+                  <View style={styles.fieldHint}>
+                    <Ionicons name="alert-circle" size={14} color="#FF4757" />
+                    <Text style={styles.fieldHintText}>{newPwError || newPwHint}</Text>
+                  </View>
+                ) : null}
+
+                {/* Confirm Password */}
+                <Text style={[styles.inputLabel, { marginTop: 12 }]}>Confirm New Password</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }, (!!confirmPwError || !!confirmHint) && styles.inputError]}
+                    value={confirmPw}
+                    onChangeText={(v) => { setConfirmPw(v); setConfirmPwError(''); }}
+                    placeholder="Repeat new password"
+                    placeholderTextColor={COLORS.MUTED_ON_CARD}
+                    secureTextEntry={!showConfirm}
+                  />
+                  <TouchableOpacity onPress={() => setShowConfirm(v => !v)} style={styles.eyeBtn}>
+                    <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.MUTED_ON_CARD} />
+                  </TouchableOpacity>
+                </View>
+                {(confirmPwError || confirmHint) ? (
+                  <View style={styles.fieldHint}>
+                    <Ionicons name="alert-circle" size={14} color="#FF4757" />
+                    <Text style={styles.fieldHintText}>{confirmPwError || confirmHint}</Text>
+                  </View>
+                ) : confirmPw.length > 0 && newPw === confirmPw ? (
+                  <View style={styles.fieldHint}>
+                    <Ionicons name="checkmark-circle" size={14} color="#2ED573" />
+                    <Text style={[styles.fieldHintText, { color: '#2ED573' }]}>Passwords match</Text>
+                  </View>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[styles.primaryBtn, { marginTop: 20 }]}
+                  onPress={savePassword}
+                  disabled={savingPw}
+                  activeOpacity={0.85}
+                >
+                  {savingPw
+                    ? <ActivityIndicator color={COLORS.DARK_TEXT} />
+                    : <Text style={styles.primaryBtnText}>Update Password</Text>}
+                </TouchableOpacity>
+              </>
+            )}
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={closePwModal} activeOpacity={0.7}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
+// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
-  scroll: { flex: 1, backgroundColor: COLORS.BACKGROUND },
-  scrollContent: { flexGrow: 1 },
 
-  loaderWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.BACKGROUND,
-  },
-
-  hero: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 52,
-    position: 'relative',
-  },
-  circleLarge: {
-    position: 'absolute',
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: COLORS.CIRCLE_LIGHT,
-    top: -30, left: -40, opacity: 0.6,
-  },
-  circleMedium: {
-    position: 'absolute',
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.CIRCLE_LIGHTER,
-    top: 20, right: -20, opacity: 0.6,
-  },
-  circleDot: {
-    position: 'absolute',
-    width: 14, height: 14, borderRadius: 7,
-    backgroundColor: COLORS.LIME,
-    top: 40, right: width * 0.3,
-  },
-
-  topHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 22,
-    zIndex: 1,
-  },
-  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  hero: { alignItems: 'center', paddingTop: 24, paddingBottom: 36 },
+  avatarWrap: { position: 'relative', marginBottom: 12 },
   avatar: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.30)',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: COLORS.LIME, alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: {
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
-    fontSize: 18,
+  avatarImg: { width: 80, height: 80, borderRadius: 40 },
+  avatarText: { fontFamily: FontFamily.BOLD, fontSize: 28, color: COLORS.DARK_TEXT },
+  cameraBtn: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.LIME, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.BACKGROUND,
   },
-  helloText: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 12,
-    color: COLORS.MUTED_ON_DARK,
-  },
-  userName: {
-    fontFamily: FontFamily.BOLD,
-    fontSize: 18,
-    color: COLORS.WHITE_TEXT,
-    letterSpacing: 1,
-    maxWidth: 180,
-  },
-  bellBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.LIME,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  heroName: { fontFamily: FontFamily.BOLD, fontSize: 20, color: COLORS.WHITE_TEXT, marginBottom: 4 },
+  heroEmail: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: COLORS.MUTED_ON_DARK },
 
-  catContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    zIndex: 1,
-  },
-  catImage: {
-    width: 120,
-    height: 120,
-  },
-  boxesContainer: {
-    flexDirection: 'row',
-    marginTop: 10,
-    gap: 8,
-  },
-  box: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  workBox: {
-    backgroundColor: '#FFE5E5',
-    borderColor: '#FF6B6B',
-  },
-  fitnessBox: {
-    backgroundColor: '#E5F9F6',
-    borderColor: '#4ECDC4',
-  },
-  groceriesBox: {
-    backgroundColor: '#E5F4F8',
-    borderColor: '#45B7D1',
-  },
-  boxText: {
-    fontSize: 12,
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.DARK_TEXT,
-  },
+  scroll: { flex: 1, backgroundColor: COLORS.INPUT_BG, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  content: { paddingTop: 8, paddingHorizontal: 16 },
 
-  card: {
-    flexGrow: 1,
+  sectionHeader: {
+    fontFamily: FontFamily.BOLD, fontSize: 12, color: COLORS.MUTED_ON_CARD,
+    letterSpacing: 0.8, textTransform: 'uppercase',
+    marginTop: 20, marginBottom: 8, marginLeft: 4,
+  },
+  card: { backgroundColor: COLORS.CARD, borderRadius: 16, overflow: 'hidden' },
+  divider: { height: 1, backgroundColor: COLORS.INPUT_BORDER, marginLeft: 52 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  rowIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: COLORS.INPUT_BG, alignItems: 'center', justifyContent: 'center' },
+  rowIconDanger: { backgroundColor: '#FFF0F1' },
+  rowLabel: { flex: 1, fontFamily: FontFamily.REGULAR, fontSize: 15, color: COLORS.DARK_TEXT },
+  rowLabelDanger: { color: '#FF4757', fontFamily: FontFamily.BOLD },
+
+  // Modal
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalCard: {
     backgroundColor: COLORS.CARD,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    marginTop: -28,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 120,
-    minHeight: 400,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, paddingBottom: 40,
   },
-  handle: {
+  modalHandle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER,
-    alignSelf: 'center', marginBottom: 20,
+    backgroundColor: COLORS.INPUT_BORDER, alignSelf: 'center', marginBottom: 20,
   },
+  modalTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: COLORS.DARK_TEXT, marginBottom: 20 },
 
-  sectionTitle: {
-    fontFamily: FontFamily.BOLD,
-    fontSize: 22,
-    color: COLORS.DARK_TEXT,
+  modalAvatarWrap: { alignSelf: 'center', position: 'relative', marginBottom: 8 },
+  modalAvatar: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: COLORS.LIME, alignItems: 'center', justifyContent: 'center',
+  },
+  modalAvatarImg: { width: 72, height: 72, borderRadius: 36 },
+  modalAvatarText: { fontFamily: FontFamily.BOLD, fontSize: 24, color: COLORS.DARK_TEXT },
+  photoActions: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 20 },
+  photoActionBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: COLORS.INPUT_BG, borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
+  },
+  photoRemoveBtn: { borderColor: '#FFCDD2', backgroundColor: '#FFF5F5' },
+  photoActionText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND },
+
+  inputLabel: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND, marginBottom: 6 },
+  input: {
+    backgroundColor: COLORS.INPUT_BG,
+    borderRadius: 12, borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
+    paddingHorizontal: 14, paddingVertical: 12,
+    fontFamily: FontFamily.REGULAR, fontSize: 15, color: COLORS.DARK_TEXT,
     marginBottom: 16,
   },
+  inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  eyeBtn: { position: 'absolute', right: 14, top: 12 },
 
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.INPUT_BG,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
+  primaryBtn: {
+    height: 52, borderRadius: 26, backgroundColor: COLORS.LIME,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: COLORS.DARK_TEXT,
-    fontFamily: FontFamily.REGULAR,
-  },
+  primaryBtnText: { fontFamily: FontFamily.BOLD, fontSize: 16, color: COLORS.DARK_TEXT },
+  cancelBtn: { alignItems: 'center', paddingVertical: 8 },
+  cancelBtnText: { fontFamily: FontFamily.REGULAR, fontSize: 15, color: COLORS.MUTED_ON_CARD },
 
-  categoryCount: {
-    fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
-    fontFamily: FontFamily.REGULAR,
-    marginBottom: 20,
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#FF4757', borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
-
-  categoriesList: {
-    gap: 16,
-    marginBottom: 20,
+  successBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: COLORS.BACKGROUND, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-    gap: 20,
+  bannerText: {
+    fontFamily: FontFamily.BOLD, fontSize: 13, color: '#fff', flex: 1,
   },
-  emptyStateText: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 18,
-    color: COLORS.MUTED_ON_CARD,
-    textAlign: 'center',
-    lineHeight: 26,
+  inputError: {
+    borderColor: '#FF4757', borderWidth: 1.5,
   },
-
-  categoryCard: {
-    backgroundColor: COLORS.INPUT_BG,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+  fieldHint: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: -10, marginBottom: 4, paddingHorizontal: 4,
   },
-  categoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  categoryIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  categoryIcon: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.LIME,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  categoryIconSecondary: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  editIcon: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  progressCircle: {
-    width: 50, height: 50, borderRadius: 25,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  progressRing: {
-    width: 46, height: 46, borderRadius: 23,
-    borderWidth: 4,
-    backgroundColor: 'transparent',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  progressText: {
-    fontSize: 12,
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.DARK_TEXT,
-  },
-  categoryName: {
-    fontSize: 18,
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.DARK_TEXT,
-    marginBottom: 4,
-  },
-  categoryStats: {
-    fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
-    fontFamily: FontFamily.REGULAR,
-  },
-
-  buttonContainer: {
-    gap: 12,
-    marginTop: 'auto',
-  },
-  actionButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  manageButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: COLORS.LIME,
-  },
-  createButton: {
-    backgroundColor: COLORS.LIME,
-  },
-  manageButtonText: {
-    fontSize: 16,
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.LIME,
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.DARK_TEXT,
+  fieldHintText: {
+    fontFamily: FontFamily.REGULAR, fontSize: 12, color: '#FF4757', flex: 1,
   },
 });

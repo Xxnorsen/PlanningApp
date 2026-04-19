@@ -11,11 +11,11 @@ import {
   Animated,
   LayoutAnimation,
   UIManager,
-  ActivityIndicator,
   Alert,
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LoadingCat } from '@/components/ui/loading-cat';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -202,7 +202,7 @@ export default function EditProjectScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color={COLORS.LIME} />
+          <LoadingCat size={120} />
         </View>
       </SafeAreaView>
     );
@@ -392,7 +392,7 @@ export default function EditProjectScreen() {
                       activeOpacity={0.85}
                     >
                       {creatingCat ? (
-                        <ActivityIndicator size="small" color={COLORS.DARK_TEXT} />
+                        <LoadingCat size={24} />
                       ) : (
                         <Ionicons name="checkmark" size={18} color={COLORS.DARK_TEXT} />
                       )}
@@ -507,7 +507,7 @@ export default function EditProjectScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color={COLORS.DARK_TEXT} />
+                <LoadingCat size={40} />
               ) : (
                 <Text style={styles.saveButtonText}>Save Changes</Text>
               )}

@@ -15,6 +15,7 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LoadingCat } from '@/components/ui/loading-cat';
 
 import { COLORS } from '@/src/constants/colors';
 import { FontFamily } from '@/src/constants/fonts';
@@ -419,7 +420,7 @@ export default function EditCategoryScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <LoadingCat size={120} />
         </View>
       </SafeAreaView>
     );

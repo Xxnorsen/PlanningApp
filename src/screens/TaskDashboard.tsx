@@ -9,10 +9,12 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
-  ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle } from 'react-native-svg';
+import { LoadingCat } from '@/components/ui/loading-cat';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { COLORS } from '../constants/colors';
@@ -39,36 +41,100 @@ const priorityBadge: Record<TaskPriority, { bg: string; color: string; icon: Ion
 const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
   const size = 80;
   const strokeWidth = 7;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
   const pct = Math.max(0, Math.min(100, progress));
+  const offset = circumference - (pct / 100) * circumference;
+
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: 'rgba(255,255,255,0.25)',
-        }}
-      />
-      {pct > 0 && (
-        <View
-          style={{
-            position: 'absolute',
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: strokeWidth,
-            borderColor: COLORS.LIME,
-            borderBottomColor: 'transparent',
-            borderLeftColor: 'transparent',
-            transform: [{ rotate: '-45deg' }],
-          }}
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        <Circle
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke="rgba(255,255,255,0.25)" strokeWidth={strokeWidth} fill="none"
         />
-      )}
+        <Circle
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke={COLORS.LIME} strokeWidth={strokeWidth} fill="none"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
       <Text style={styles.progressPct}>{pct}%</Text>
     </View>
+  );
+};
+
+// ── Celebration overlay ────────────────────────────────────────────────────────
+
+const CONFETTI_COLORS = ['#C8FF3E', '#FF4757', '#FFA502', '#2ED573', '#FF9BCC', '#1E90FF', '#6C5CE7'];
+
+const CelebrationOverlay: React.FC<{ visible: boolean; onDone: () => void }> = ({ visible, onDone }) => {
+  const scale = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const particles = useRef(
+    Array.from({ length: 12 }, () => ({
+      x: new Animated.Value(0),
+      y: new Animated.Value(0),
+      op: new Animated.Value(1),
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      angle: Math.random() * Math.PI * 2,
+      dist: 60 + Math.random() * 80,
+    }))
+  ).current;
+
+  useEffect(() => {
+    if (!visible) return;
+    scale.setValue(0);
+    opacity.setValue(0);
+    particles.forEach(p => { p.x.setValue(0); p.y.setValue(0); p.op.setValue(1); });
+
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, tension: 80, friction: 7, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ...particles.map(p =>
+        Animated.parallel([
+          Animated.timing(p.x, { toValue: Math.cos(p.angle) * p.dist, duration: 700, useNativeDriver: true }),
+          Animated.timing(p.y, { toValue: Math.sin(p.angle) * p.dist - 40, duration: 700, useNativeDriver: true }),
+          Animated.timing(p.op, { toValue: 0, duration: 700, delay: 200, useNativeDriver: true }),
+        ])
+      ),
+    ]).start();
+
+    const t = setTimeout(onDone, 1600);
+    return () => clearTimeout(t);
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible transparent animationType="none">
+      <Animated.View style={[styles.celebOverlay, { opacity }]}>
+        <View style={styles.celebCenter}>
+          {particles.map((p, i) => (
+            <Animated.View
+              key={i}
+              style={{
+                position: 'absolute',
+                width: 10, height: 10, borderRadius: 5,
+                backgroundColor: p.color,
+                transform: [{ translateX: p.x }, { translateY: p.y }],
+                opacity: p.op,
+              }}
+            />
+          ))}
+          <Animated.View style={[styles.celebCard, { transform: [{ scale }] }]}>
+            <View style={styles.celebCheck}>
+              <Ionicons name="checkmark" size={36} color="#fff" />
+            </View>
+            <Text style={styles.celebTitle}>Well Done!</Text>
+            <Text style={styles.celebSub}>Event marked as complete</Text>
+          </Animated.View>
+        </View>
+      </Animated.View>
+    </Modal>
   );
 };
 
@@ -122,12 +188,13 @@ const InProgressCard: React.FC<InProgressCardProps> = ({
 interface CategoryRowProps {
   name: string;
   color: string;
+  icon?: string;
   taskCount: number;
   delay: number;
   onPress: () => void;
 }
 
-const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, taskCount, delay, onPress }) => {
+const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, icon, taskCount, delay, onPress }) => {
   const translateY = useRef(new Animated.Value(30)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -142,12 +209,12 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, taskCount, delay
     <Animated.View style={{ transform: [{ translateY }], opacity }}>
       <TouchableOpacity activeOpacity={0.8} style={styles.taskGroupRow} onPress={onPress}>
         <View style={[styles.taskGroupIcon, { backgroundColor: color + '22' }]}>
-          <View style={[styles.colorDot, { backgroundColor: color }]} />
+          <Ionicons name={(icon ?? 'grid-outline') as any} size={22} color={color} />
         </View>
         <View style={styles.taskGroupInfo}>
           <Text style={styles.taskGroupName}>{name}</Text>
           <Text style={styles.taskGroupCount}>
-            {taskCount} {taskCount === 1 ? 'Task' : 'Tasks'}
+            {taskCount} {taskCount === 1 ? 'Event' : 'Events'}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={COLORS.MUTED_ON_CARD} />
@@ -175,6 +242,7 @@ const TaskDashboard: React.FC = () => {
   const handleToggleDone = async (task: Task) => {
     try {
       await toggleComplete(task);
+      if (task.status !== 'completed') setCelebrating(true);
     } catch (e) {
       showApiErrorAlert(e);
     }
@@ -192,6 +260,7 @@ const TaskDashboard: React.FC = () => {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
 
   const headerScale = useRef(new Animated.Value(0.95)).current;
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -231,6 +300,11 @@ const TaskDashboard: React.FC = () => {
     [tasks]
   );
 
+  const doneTasks = useMemo(
+    () => tasks.filter(t => t.status === 'completed').slice(0, 10),
+    [tasks]
+  );
+
   const categoryMap = useMemo(() => {
     const m: Record<string, string> = {};
     categories.forEach(c => { m[c.id] = c.name; });
@@ -255,7 +329,7 @@ const TaskDashboard: React.FC = () => {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.loaderWrap}>
-          <ActivityIndicator color={COLORS.LIME} size="large" />
+          <LoadingCat size={120} />
         </View>
       </SafeAreaView>
     );
@@ -330,7 +404,7 @@ const TaskDashboard: React.FC = () => {
                 activeOpacity={0.85}
                 onPress={() => router.push('/(tabs)/planner')}
               >
-                <Text style={styles.viewTasksText}>View Tasks</Text>
+                <Text style={styles.viewTasksText}>View Events</Text>
                 <View style={styles.arrowCircle}>
                   <Ionicons name="arrow-forward" size={14} color={COLORS.DARK_TEXT} />
                 </View>
@@ -352,7 +426,7 @@ const TaskDashboard: React.FC = () => {
           />
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>In Progress</Text>
+            <Text style={styles.sectionTitle}>Upcoming Events</Text>
             <View style={styles.sectionBadge}>
               <Text style={styles.sectionBadgeText}>{inProgressTasks.length}</Text>
             </View>
@@ -372,7 +446,7 @@ const TaskDashboard: React.FC = () => {
                 activeOpacity={0.85}
               >
                 <Ionicons name="add" size={16} color={COLORS.DARK_TEXT} />
-                <Text style={styles.emptyInlineBtnText}>Add task</Text>
+                <Text style={styles.emptyInlineBtnText}>Add event</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -394,7 +468,7 @@ const TaskDashboard: React.FC = () => {
           )}
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Task Groups</Text>
+            <Text style={styles.sectionTitle}>Categories</Text>
             <View style={styles.sectionBadge}>
               <Text style={styles.sectionBadgeText}>{categories.length}</Text>
             </View>
@@ -412,15 +486,51 @@ const TaskDashboard: React.FC = () => {
                   key={cat.id}
                   name={cat.name}
                   color={cat.color}
+                  icon={cat.icon}
                   taskCount={cat.taskCount ?? taskCountsByCategory[cat.id] ?? 0}
                   delay={i * 80}
-                  onPress={() => router.push('/(tabs)/planner')}
+                  onPress={() => router.push('/categories')}
                 />
               ))}
             </View>
           )}
+
+          {/* ── Done section ── */}
+          {doneTasks.length > 0 && (
+            <>
+              <View style={[styles.sectionHeader, { marginTop: 24 }]}>
+                <Text style={styles.sectionTitle}>Done</Text>
+                <View style={[styles.sectionBadge, { backgroundColor: '#E8F9EE' }]}>
+                  <Text style={[styles.sectionBadgeText, { color: '#2ED573' }]}>{doneTasks.length}</Text>
+                </View>
+              </View>
+              <View style={styles.doneList}>
+                {doneTasks.map(task => (
+                  <View key={task.id} style={styles.doneRow}>
+                    <View style={styles.doneCheck}>
+                      <Ionicons name="checkmark" size={14} color="#2ED573" />
+                    </View>
+                    <View style={styles.doneInfo}>
+                      <Text style={styles.doneTitle} numberOfLines={1}>{task.title}</Text>
+                      {task.categoryId && categoryMap[task.categoryId] ? (
+                        <Text style={styles.doneCat}>{categoryMap[task.categoryId]}</Text>
+                      ) : null}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleToggleDone(task)}
+                      hitSlop={8}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="arrow-undo-outline" size={16} color={COLORS.MUTED_ON_CARD} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
         </View>
       </ScrollView>
+      <CelebrationOverlay visible={celebrating} onDone={() => setCelebrating(false)} />
     </SafeAreaView>
   );
 };
@@ -605,7 +715,7 @@ const styles = StyleSheet.create({
 
   inProgressScroll: { paddingRight: 20, gap: 12, marginBottom: 22 },
   inProgressCard: {
-    width: width * 0.5,
+    width: Math.min(width * 0.5, 200),
     borderRadius: 18,
     padding: 16,
     gap: 10,
@@ -665,8 +775,7 @@ const styles = StyleSheet.create({
     width: 46, height: 46, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
   },
-  colorDot: { width: 18, height: 18, borderRadius: 9 },
-  taskGroupInfo: { flex: 1 },
+taskGroupInfo: { flex: 1 },
   taskGroupName: {
     fontFamily: FontFamily.BOLD,
     fontSize: 15,
@@ -705,6 +814,44 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.DARK_TEXT,
   },
+
+  doneList: { gap: 8, marginBottom: 8 },
+  doneRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.INPUT_BG, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
+  },
+  doneCheck: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: '#E8F9EE', alignItems: 'center', justifyContent: 'center',
+  },
+  doneInfo: { flex: 1 },
+  doneTitle: {
+    fontFamily: FontFamily.BOLD, fontSize: 14, color: COLORS.MUTED_ON_CARD,
+    textDecorationLine: 'line-through',
+  },
+  doneCat: { fontFamily: FontFamily.REGULAR, fontSize: 11, color: COLORS.MUTED_ON_CARD, marginTop: 2 },
+
+  celebOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  celebCenter: { alignItems: 'center', justifyContent: 'center' },
+  celebCard: {
+    backgroundColor: '#fff', borderRadius: 28,
+    paddingHorizontal: 40, paddingVertical: 32,
+    alignItems: 'center', gap: 8,
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  celebCheck: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: COLORS.BACKGROUND,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 8,
+  },
+  celebTitle: { fontFamily: FontFamily.BOLD, fontSize: 22, color: COLORS.DARK_TEXT },
+  celebSub: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD },
 });
 
 export default TaskDashboard;

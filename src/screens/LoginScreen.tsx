@@ -17,15 +17,11 @@ import { useRouter } from 'expo-router';
 
 import { AuthHeader } from '../components/auth/AuthHeader';
 import { InputField } from '../components/auth/InputField';
-import { SocialButton } from '../components/auth/SocialButton';
 import { COLORS } from '../constants/colors';
 import { FontFamily } from '../constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
-
-const TOTAL_STEPS = 3;
-const CURRENT_STEP = 1;
 
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
@@ -155,15 +151,6 @@ export function LoginScreen() {
           <View style={styles.card}>
             <View style={styles.handle} />
 
-            {/* Progress dots */}
-            <View style={styles.progressRow}>
-              <View style={styles.dots}>
-                {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-                  <View key={i} style={i === CURRENT_STEP - 1 ? styles.dotActive : styles.dotInactive} />
-                ))}
-              </View>
-              <Text style={styles.stepText}>Step {CURRENT_STEP} of {TOTAL_STEPS}</Text>
-            </View>
 
             <Text style={styles.cardTitle}>Personal info</Text>
             <Text style={styles.cardSubtitle}>Tell us a little about yourself</Text>
@@ -250,9 +237,9 @@ export function LoginScreen() {
               </View>
               <Text style={styles.termsText}>
                 {'I agree to the '}
-                <Text style={styles.termsLink}>Terms of Service</Text>
+                <Text style={styles.termsLink} onPress={() => router.push('/(auth)/terms')}>Terms of Service</Text>
                 {' and '}
-                <Text style={styles.termsLink}>Privacy Policy</Text>
+                <Text style={styles.termsLink} onPress={() => router.push('/(auth)/privacy')}>Privacy Policy</Text>
               </Text>
             </TouchableOpacity>
 
@@ -274,17 +261,6 @@ export function LoginScreen() {
                 </>
               )}
             </TouchableOpacity>
-
-            {/* Divider + social */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or sign up with</Text>
-              <View style={styles.dividerLine} />
-            </View>
-            <View style={styles.socialRow}>
-              <SocialButton provider="google" />
-              <SocialButton provider="apple" />
-            </View>
 
             <View style={styles.bottomRow}>
               <Text style={styles.bottomMuted}>Already have an account? </Text>
@@ -318,11 +294,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.INPUT_BORDER, alignSelf: 'center', marginBottom: 24,
   },
 
-  progressRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  dots: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  dotActive: { width: 24, height: 8, borderRadius: 4, backgroundColor: COLORS.BACKGROUND },
-  dotInactive: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.INPUT_BORDER },
-  stepText: { fontFamily: FontFamily.REGULAR, fontSize: 12, color: COLORS.MUTED_ON_CARD },
 
   cardTitle: { fontFamily: FontFamily.BOLD, fontSize: 24, color: COLORS.DARK_TEXT, marginBottom: 4 },
   cardSubtitle: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD, marginBottom: 20 },
@@ -347,11 +318,11 @@ const styles = StyleSheet.create({
   seg: { flex: 1, height: 5, borderRadius: 3 },
   strengthLabel: { fontFamily: FontFamily.BOLD, fontSize: 11, minWidth: 36 },
 
-  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 28 },
+  termsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 },
   checkbox: {
     width: 20, height: 20, borderRadius: 6,
     borderWidth: 1.5, borderColor: COLORS.INPUT_BORDER,
-    alignItems: 'center', justifyContent: 'center', marginTop: 1,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   checkboxChecked: { backgroundColor: COLORS.LIME, borderColor: COLORS.LIME },
   termsText: { flex: 1, fontFamily: FontFamily.REGULAR, fontSize: 13, color: COLORS.MUTED_ON_CARD, lineHeight: 20 },
@@ -370,12 +341,6 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: 'rgba(0,0,0,0.10)', alignItems: 'center', justifyContent: 'center',
   },
-
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-  dividerLine: { flex: 1, height: 1.5, backgroundColor: COLORS.INPUT_BORDER, borderRadius: 1 },
-  dividerText: { fontFamily: FontFamily.REGULAR, fontSize: 12, color: COLORS.MUTED_ON_CARD },
-
-  socialRow: { flexDirection: 'row', gap: 12, marginBottom: 28 },
 
   bottomRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   bottomMuted: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD },
