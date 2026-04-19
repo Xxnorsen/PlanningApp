@@ -83,20 +83,13 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
               color={COLORS.DARK_TEXT} 
             />
           </View>
-          <View style={styles.categoryIconSecondary}>
-            <Ionicons 
-              name={getSecondaryIcon(category.name)} 
-              size={16} 
-              color={COLORS.MUTED_ON_CARD} 
-            />
-          </View>
           <TouchableOpacity
             style={styles.editIcon}
             onPress={() => onEdit(category)}
             activeOpacity={0.8}
           >
             <Ionicons 
-              name="create-outline" 
+              name="settings-outline" 
               size={16} 
               color={COLORS.MUTED_ON_CARD} 
             />
@@ -114,7 +107,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
       
       <Text style={styles.categoryName}>{category.name}</Text>
       <Text style={styles.categoryStats}>
-        {projectCount} {projectCount === 1 ? 'Project' : 'Projects'}, {taskCount} {taskCount === 1 ? 'Task' : 'Tasks'}
+        {taskCount} {taskCount === 1 ? 'Task' : 'Tasks'}
       </Text>
     </TouchableOpacity>
   );
@@ -130,8 +123,8 @@ export default function GroupScreen() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
-  const userName = (user?.name ?? 'NORSEN').toUpperCase();
-  const firstLetter = (user?.name?.[0] ?? 'N').toUpperCase();
+  const userName = (user?.name ?? 'User').toUpperCase();
+  const firstLetter = (user?.name?.[0] ?? 'U').toUpperCase();
 
   const stickerSources = [
     require('@/assets/stickers/cat1.png'),
@@ -578,9 +571,6 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center', justifyContent: 'center',
-    position: 'absolute',
-    top: 8,
-    right: 8,
   },
   progressCircle: {
     width: 50, height: 50, borderRadius: 25,

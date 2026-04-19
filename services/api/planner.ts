@@ -39,19 +39,26 @@ import { normalizeTaskRaw } from './task-utils';
 export const plannerApi = {
   /** GET /planner/daily?date=YYYY-MM-DD */
   getDaily: async (date: string): Promise<DayPlan> => {
-    const { data } = await apiClient.get<RawDailyResponse | any[]>('/planner/daily', {
-      params: { date },
-    });
+  const { data } = await apiClient.get<RawDailyResponse | any[]>('/planner/daily', {
+    params: { date },
+  });
 
-    // Handle both { date, tasks } and raw array
-    if (Array.isArray(data)) {
-      return { date, tasks: data.map(normalizeTaskRaw) };
-    }
-    return {
-      date: (data as RawDailyResponse).date ?? date,
-      tasks: ((data as RawDailyResponse).tasks ?? []).map(normalizeTaskRaw),
-    };
-  },
+  const raw = Array.isArray(data) ? data : ((data as RawDailyResponse).tasks ?? []);
+
+  // Backend doesn't return status/is_completed, so fetch each task fully
+  const fullTasks = await Promise.all(
+    raw.map(async (t: any) => {
+      try {
+        const { data: full } = await apiClient.get(`/tasks/${t.id}`);
+        return normalizeTaskRaw(full);
+      } catch {
+        return normalizeTaskRaw(t);
+      }
+    })
+  );
+
+  return { date, tasks: fullTasks };
+},
 
   /**
    * GET /planner/weekly?start_date=YYYY-MM-DD

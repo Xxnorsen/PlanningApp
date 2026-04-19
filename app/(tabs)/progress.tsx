@@ -24,6 +24,8 @@ import { tasksApi } from '@/services/api/tasks';
 import { categoriesApi } from '@/services/api/categories';
 import type { Task } from '@/types/task';
 import type { Category } from '@/types/category';
+import { plannerApi } from '@/services/api/planner';
+
 
 const { width } = Dimensions.get('window');
 
@@ -97,25 +99,50 @@ interface WeeklyBarChartProps {
 const WeeklyBarChart: React.FC<WeeklyBarChartProps> = ({ tasks, selectedTab }) => {
   // Calculate data based on selected tab
   const getDailyData = () => {
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    const today = new Date();
-    
-    return hours.map(hour => {
-      const hourTasks = tasks.filter(task => {
-        if (!task.completedAt) return false;
-        const completedDate = new Date(task.completedAt);
-        return completedDate.toDateString() === today.toDateString() && 
-               completedDate.getHours() === hour;
-      });
-      
-      const completionRate = Math.min(100, (hourTasks.length / 2) * 100); // Max 2 tasks per hour
-      
-      return { 
-        day: hour === 0 ? '12a' : hour < 12 ? `${hour}a` : hour === 12 ? '12p' : `${hour - 12}p`, 
-        value: completionRate 
-      };
-    }).filter((_, index) => index % 3 === 0); // Show every 3rd hour for readability
-  };
+  const today = new Date();
+  const currentHour = today.getHours();
+
+  const blocks = [
+    { start: 0,  end: 2,  label: '12AM' },
+    { start: 3,  end: 5,  label: '3AM'  },
+    { start: 6,  end: 8,  label: '6AM'  },
+    { start: 9,  end: 11, label: '9AM' },
+    { start: 12, end: 14, label: '12PM' },
+    { start: 15, end: 17, label: '3PM'  },
+    { start: 18, end: 20, label: '6PM'  },
+    { start: 21, end: 23, label: '9PM' },
+  ];
+
+  // Get all completed tasks for today
+  const todayCompleted = tasks.filter(task => {
+    if (task.status !== 'completed') return false;
+    // Use dueDate as the date reference since backend has no completedAt
+    const ref = task.completedAt ?? task.dueDate;
+    if (!ref) return false;
+    const d = new Date(ref);
+    return (
+      d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate()
+    );
+  });
+
+  // Find which block the current hour falls in
+  const currentBlockIndex = blocks.findIndex(
+    b => currentHour >= b.start && currentHour <= b.end
+  );
+
+  return blocks.map((block, index) => {
+    // Only show completed tasks in the current time block
+    // since we have no real per-hour data from the backend
+    const isCurrentBlock = index === currentBlockIndex;
+    const value = isCurrentBlock
+      ? Math.min(100, (todayCompleted.length / 3) * 100)
+      : 0;
+
+    return { day: block.label, value };
+  });
+};
 
   const getWeeklyData = () => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -126,9 +153,18 @@ const WeeklyBarChart: React.FC<WeeklyBarChartProps> = ({ tasks, selectedTab }) =
       targetDate.setDate(today.getDate() - today.getDay() + index);
       
       const dayTasks = tasks.filter(task => {
-        if (!task.completedAt) return false;
-        const completedDate = new Date(task.completedAt);
-        return completedDate.toDateString() === targetDate.toDateString();
+        // Check if task is completed
+        if (task.status !== 'completed') return false;
+        
+        // If completedAt exists, use it for precise date filtering
+        if (task.completedAt) {
+          const completedDate = new Date(task.completedAt);
+          return completedDate.toDateString() === targetDate.toDateString();
+        }
+        
+        // Fallback: if no completedAt, use updatedAt for date filtering
+        const updatedDate = new Date(task.updatedAt);
+        return updatedDate.toDateString() === targetDate.toDateString();
       });
       
       const completionRate = Math.min(100, (dayTasks.length / 10) * 100);
@@ -150,12 +186,24 @@ const WeeklyBarChart: React.FC<WeeklyBarChartProps> = ({ tasks, selectedTab }) =
       const endDay = Math.min(startDay + 6, daysInMonth);
       
       const weekTasks = tasks.filter(task => {
-        if (!task.completedAt) return false;
-        const completedDate = new Date(task.completedAt);
-        return completedDate.getFullYear() === year &&
-               completedDate.getMonth() === month &&
-               completedDate.getDate() >= startDay &&
-               completedDate.getDate() <= endDay;
+        // Check if task is completed
+        if (task.status !== 'completed') return false;
+        
+        // If completedAt exists, use it for precise date filtering
+        if (task.completedAt) {
+          const completedDate = new Date(task.completedAt);
+          return completedDate.getFullYear() === year &&
+                 completedDate.getMonth() === month &&
+                 completedDate.getDate() >= startDay &&
+                 completedDate.getDate() <= endDay;
+        }
+        
+        // Fallback: if no completedAt, use updatedAt for date filtering
+        const updatedDate = new Date(task.updatedAt);
+        return updatedDate.getFullYear() === year &&
+               updatedDate.getMonth() === month &&
+               updatedDate.getDate() >= startDay &&
+               updatedDate.getDate() <= endDay;
       });
       
       const completionRate = Math.min(100, (weekTasks.length / 20) * 100); // Max 20 tasks per week
@@ -276,23 +324,59 @@ export default function ProgressScreen() {
   const headerOpacity = useRef(new Animated.Value(0)).current;
 
   const loadProgress = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
-    try {
-      const [p, t, c] = await Promise.all([
-        progressApi.get().catch(() => null),
-        tasksApi.getCompleted().catch(() => []),
-        categoriesApi.getAll().catch(() => []),
-      ]);
-      setProgress(p);
-      setTasks(t);
-      setCategories(c);
-      if (isRefresh) {
-        await rotateSticker().catch(() => {});
-      }
-    } finally {
-      if (isRefresh) setRefreshing(false); else setLoading(false);
+  if (isRefresh) setRefreshing(true); else setLoading(true);
+  try {
+    const today = new Date();
+    const toIsoDate = (d: Date) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const [p, t, c, todayPlan] = await Promise.all([
+  progressApi.get().catch(() => null),
+  tasksApi.getCompleted().catch(() => []),
+  categoriesApi.getAll().catch(() => []),
+  plannerApi.getDaily(toIsoDate(today)).catch(() => ({ date: '', tasks: [] })),
+]);
+
+console.log('=== Progress Debug ===');
+console.log('getCompleted tasks:', t.map(task => ({ 
+  id: task.id, 
+  status: task.status, 
+  completedAt: task.completedAt,
+  updatedAt: task.updatedAt 
+})));
+console.log('todayPlan tasks:', todayPlan.tasks.map(task => ({ 
+  id: task.id, 
+  status: task.status,
+  completedAt: task.completedAt,
+})));
+
+    // Merge today's planner tasks into completed list
+    const todayCompleted = todayPlan.tasks.filter(t => t.status === 'completed');
+    
+    // Combine: use a Map to avoid duplicates, planner data takes priority for today
+    const taskMap = new Map<string, Task>();
+    t.forEach(task => taskMap.set(task.id, task));
+    todayCompleted.forEach(task => taskMap.set(task.id, {
+      ...task,
+      // Ensure completedAt is set so daily chart can filter correctly
+      completedAt: task.completedAt ?? new Date().toISOString(),
+    }));
+
+    setProgress(p);
+    setTasks(Array.from(taskMap.values()));
+    setCategories(c);
+
+    if (isRefresh) {
+      await rotateSticker().catch(() => {});
     }
-  }, [rotateSticker]);
+  } finally {
+    if (isRefresh) setRefreshing(false); else setLoading(false);
+  }
+}, [rotateSticker]);
 
   useFocusEffect(
     useCallback(() => {

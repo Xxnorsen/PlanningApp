@@ -10,7 +10,9 @@ import {
   ScrollView,
   StatusBar,
   Alert,
+  Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
@@ -23,6 +25,58 @@ import type { Category } from '@/types/category';
 import type { Task } from '@/types/task';
 
 const { width } = Dimensions.get('window');
+
+// ── Delete Modal Component ─────────────────────────────────────────────────────
+
+const CAT_SIZE = 140;
+const CAT_OVERLAP = 70;
+
+interface DeleteModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  message: string;
+}
+
+const DeleteModal = ({ visible, onClose, onConfirm, message }: DeleteModalProps) => (
+  <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalWrapper}>
+        <View style={styles.catFloatContainer} pointerEvents="none">
+          <Image
+            source={require('@/assets/animations/Blinking Kitty.gif')}
+            style={styles.catVideo}
+            contentFit="contain"
+          />
+        </View>
+        <View style={styles.modalCard}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete?</Text>
+            <Text style={styles.modalMessage}>
+              {message}
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalCancelBtn]}
+                onPress={onClose}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalDeleteBtn]}
+                onPress={onConfirm}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalDeleteBtnText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </View>
+    </View>
+  </Modal>
+);
 
 // ── Color Picker Component ─────────────────────────────────────────────────────
 
@@ -171,6 +225,9 @@ export default function EditCategoryScreen() {
   const [selectedColor, setSelectedColor] = useState<string>(COLORS.LIME);
   const [selectedIcon, setSelectedIcon] = useState('laptop-outline');
   const [loading, setLoading] = useState(true);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState('');
+  const [pendingDeleteAction, setPendingDeleteAction] = useState<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     loadCategoryData();
@@ -223,61 +280,111 @@ export default function EditCategoryScreen() {
       router.back();
     } catch (error) {
       console.error('Failed to update category:', error);
-      Alert.alert('Error', 'Failed to update category');
+      
+      // Show more detailed error information
+      let errorMessage = 'Failed to update category';
+      if (error && typeof error === 'object') {
+        const errObj = error as any;
+        if (errObj.message) {
+          errorMessage = `Failed to update category: ${errObj.message}`;
+        }
+        if (errObj.code) {
+          errorMessage += ` (Code: ${errObj.code})`;
+        }
+        if (errObj.status) {
+          errorMessage += ` (Status: ${errObj.status})`;
+        }
+      }
+      
+      Alert.alert('Error', errorMessage);
     }
   };
 
   const handleDeleteGroup = () => {
-    Alert.alert(
-      'Delete Group',
-      'Are you sure you want to delete this group? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            if (!category) return;
+    // Check if category has tasks
+    if (tasks.length > 0) {
+      Alert.alert(
+        'Cannot Delete Group',
+        `This group has ${tasks.length} task${tasks.length === 1 ? '' : 's'}. Please delete all tasks first before deleting the group.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
+    setDeleteMessage('Are you sure you want to delete this group? This action cannot be undone.');
+    setPendingDeleteAction(() => {
+      return async () => {
+        if (!category) return;
+        
+        try {
+          console.log('Attempting to delete category:', category.id);
+          await categoriesApi.delete(category.id);
+          setDeleteModalVisible(false);
+          router.back();
+        } catch (error) {
+          console.error('Failed to delete category:', error);
+          
+          // Try to extract more detailed error information
+          let errorDetails = 'Unknown error';
+          if (error) {
+            console.error('Error type:', typeof error);
+            console.error('Error constructor:', error.constructor.name);
+            console.error('Error keys:', Object.keys(error));
             
-            try {
-              await categoriesApi.delete(category.id);
-              Alert.alert('Success', 'Group deleted successfully');
-              router.back();
-            } catch (error) {
-              console.error('Failed to delete category:', error);
-              Alert.alert('Error', 'Failed to delete group');
+            if (error instanceof Error) {
+              errorDetails = error.message;
+              console.error('Error message:', error.message);
+              console.error('Error stack:', error.stack);
+            }
+            
+            if (typeof error === 'object') {
+              const errObj = error as any;
+              console.error('Error code:', errObj.code);
+              console.error('Error status:', errObj.status);
+              console.error('Error original:', errObj.original);
+              
+              if (errObj.message) {
+                errorDetails = errObj.message;
+              }
+              if (errObj.code) {
+                errorDetails += ` (Code: ${errObj.code})`;
+              }
+              if (errObj.status) {
+                errorDetails += ` (Status: ${errObj.status})`;
+              }
+              if (errObj.original) {
+                console.error('Original error:', JSON.stringify(errObj.original, null, 2));
+              }
             }
           }
-        },
-      ]
-    );
+          
+          Alert.alert('Error', `Failed to delete group: ${errorDetails}`);
+          setDeleteModalVisible(false);
+        }
+      };
+    });
+    setDeleteModalVisible(true);
   };
 
   const handleEditTask = (task: Task) => {
     router.push('/add-task' as any);
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    Alert.alert(
-      'Delete Task',
-      'Are you sure you want to delete this task?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await tasksApi.delete(taskId);
-              setTasks(tasks.filter(t => t.id !== taskId));
-            } catch (error) {
-              console.error('Failed to delete task:', error);
-              Alert.alert('Error', 'Failed to delete task');
-            }
-          }
-        },
-      ]
-    );
+  const handleDeleteTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    setDeleteMessage(`Are you sure you want to delete "${task?.title}"?`);
+    setPendingDeleteAction(() => async () => {
+      try {
+        await tasksApi.delete(taskId);
+        setTasks(tasks.filter(t => t.id !== taskId));
+        setDeleteModalVisible(false);
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+        Alert.alert('Error', 'Failed to delete task');
+        setDeleteModalVisible(false);
+      }
+    });
+    setDeleteModalVisible(true);
   };
 
   const handleToggleComplete = async (taskId: string) => {
@@ -293,6 +400,19 @@ export default function EditCategoryScreen() {
     } catch (error) {
       console.error('Failed to toggle task:', error);
     }
+  };
+
+  const confirmDelete = async () => {
+    if (pendingDeleteAction) {
+      await pendingDeleteAction();
+    }
+    setDeleteModalVisible(false);
+    setPendingDeleteAction(null);
+  };
+
+  const cancelDelete = () => {
+    setDeleteModalVisible(false);
+    setPendingDeleteAction(null);
   };
 
   if (loading) {
@@ -428,7 +548,7 @@ export default function EditCategoryScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="add-outline" size={20} color={COLORS.WHITE_TEXT} />
-              <Text style={styles.addTaskBtnText}>Add New Task/Project</Text>
+              <Text style={styles.addTaskBtnText}>Add New Task</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -458,6 +578,13 @@ export default function EditCategoryScreen() {
           </View>
         </ScrollView>
       </View>
+      
+      <DeleteModal
+        visible={deleteModalVisible}
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        message={deleteMessage}
+      />
     </SafeAreaView>
   );
 }
@@ -730,5 +857,88 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.BOLD,
     fontSize: 16,
     color: COLORS.LIME,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(26,26,46,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalWrapper: {
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  catFloatContainer: {
+    width: CAT_SIZE,
+    height: CAT_SIZE,
+    backgroundColor: 'transparent',
+    marginBottom: -CAT_OVERLAP,
+    left: 100,
+    zIndex: 10,
+  },
+  catVideo: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCard: {
+    backgroundColor: COLORS.CARD,
+    borderRadius: 24,
+    width: '100%',
+    shadowColor: COLORS.BACKGROUND,
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+    overflow: 'visible',
+    zIndex: 12,
+  },
+  modalContent: {
+    alignItems: 'center',
+    paddingTop: CAT_OVERLAP + 12,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  modalTitle: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 20,
+    color: COLORS.DARK_TEXT,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: COLORS.MUTED_ON_CARD,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalActions: { flexDirection: 'row', gap: 12, width: '100%' },
+  modalBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  modalCancelBtn: {
+    backgroundColor: COLORS.INPUT_BG,
+    borderWidth: 1.5,
+    borderColor: COLORS.INPUT_BORDER,
+  },
+  modalDeleteBtn: { backgroundColor: '#FF4757' },
+  modalCancelBtnText: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.MUTED_ON_CARD,
+    fontSize: 15,
+  },
+  modalDeleteBtnText: {
+    fontFamily: FontFamily.BOLD,
+    color: COLORS.WHITE_TEXT,
+    fontSize: 15,
   },
 });
