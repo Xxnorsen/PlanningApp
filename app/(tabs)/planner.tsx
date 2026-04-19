@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState,useRef } from 'react';
 import {
   View,
   Text,
@@ -78,7 +78,7 @@ const statusStyle = {
 
 function taskStatusLabel(t: Task): keyof typeof statusStyle {
   if (t.status === 'completed') return 'Done';
-  if (t.dueDate && new Date(t.dueDate) < new Date()) return 'In Progress';
+  // Remove the dueDate check — a pending task is just "To-do"
   return 'To-do';
 }
 
@@ -115,7 +115,7 @@ const DeleteModal = ({ visible, onClose, onConfirm, taskTitle }: DeleteModalProp
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Delete Task?</Text>
             <Text style={styles.modalMessage}>
-              Are you sure you want to delete "{taskTitle}"?
+              Are you sure you want to delete &quot;{taskTitle}&quot;?
             </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -225,26 +225,45 @@ export default function PlannerScreen() {
   const [error, setError] = useState('');
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-
+  
+  
   const loadDay = useCallback(async (date: Date, isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
-    setError('');
-    try {
-      const plan = await plannerApi.getDaily(toIsoDate(date));
-      setTasks(plan.tasks);
-    } catch (e) {
-      const err = toApiError(e);
-      setError(err.message);
-      // Only alert on network/server errors; inline banner is enough otherwise
-      if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
-        showApiErrorAlert(err);
-      }
-      setTasks([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  if (isRefresh) setRefreshing(true); else setLoading(true);
+  setError('');
+  try {
+    const plan = await plannerApi.getDaily(toIsoDate(date));
+
+    setTasks(prev => {
+      // Keep any tasks that are completed locally — backend filters them out
+      const localCompleted = prev.filter(t => t.status === 'completed');
+      
+      // Merge API tasks with local status
+      const currentStatusMap: Record<string, Task['status']> = {};
+      prev.forEach(t => { currentStatusMap[t.id] = t.status; });
+
+      const apiTasks = plan.tasks.map(t => ({
+        ...t,
+        status: currentStatusMap[t.id] ?? t.status,
+      }));
+
+      // Add back completed tasks that API didn't return
+      const apiIds = new Set(apiTasks.map(t => t.id));
+      const missingCompleted = localCompleted.filter(t => !apiIds.has(t.id));
+
+      return [...apiTasks, ...missingCompleted];
+    });
+  } catch (e) {
+    const err = toApiError(e);
+    setError(err.message);
+    if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
+      showApiErrorAlert(err);
     }
-  }, []);
+    setTasks([]);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchCategories().catch(() => {});
@@ -252,10 +271,10 @@ export default function PlannerScreen() {
 
   // Reload when screen gains focus (e.g. after edit/create) and on date change
   useFocusEffect(
-    useCallback(() => {
-      loadDay(selectedDate);
-    }, [selectedDate, loadDay])
-  );
+  useCallback(() => {
+    loadDay(selectedDate);
+  }, [selectedDate, loadDay])
+);
 
   const handleEdit = (id: string) => {
     router.push(`/EditProject?id=${id}`);
@@ -288,15 +307,19 @@ export default function PlannerScreen() {
   };
 
   const handleToggle = async (task: Task) => {
-    const nextStatus = task.status === 'completed' ? 'pending' : 'completed';
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: nextStatus } : t));
-    try {
-      await tasksApi.toggleComplete(task);
-    } catch (e) {
-      setTasks(prev => prev.map(t => t.id === task.id ? task : t));
-      showApiErrorAlert(e);
-    }
-  };
+  const optimisticStatus = task.status === 'completed' ? 'pending' : 'completed';
+  console.log('=== handleToggle ===', task.id, task.status, '->', optimisticStatus);
+  setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: optimisticStatus } : t));
+  
+  try {
+    const updated = await tasksApi.toggleComplete(task);
+    console.log('API response after toggle:', { id: updated.id, status: updated.status });
+    setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+  } catch (e) {
+    setTasks(prev => prev.map(t => t.id === task.id ? task : t));
+    showApiErrorAlert(e);
+  }
+};
 
   const categoryMap = useMemo(() => {
     const m: Record<string, string> = {};

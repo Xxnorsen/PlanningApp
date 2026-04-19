@@ -43,6 +43,8 @@ function toApiPayload(payload: CreateTaskPayload | UpdateTaskPayload) {
   };
 }
 
+
+
 // ── Tasks API ─────────────────────────────────────────────────────────────────
 
 export const tasksApi = {
@@ -60,10 +62,23 @@ export const tasksApi = {
 
   /** GET /tasks/completed/ */
   getCompleted: async (): Promise<Task[]> => {
-    const { data } = await apiClient.get<RawTask[]>('/tasks/completed/');
-    return data.map(normalizeTask);
-  },
-
+  const { data } = await apiClient.get<RawTask[]>('/tasks/completed/');
+  console.log('RAW /tasks/completed/ response:', JSON.stringify(data[0])); // log first task raw
+  
+  const fullTasks = await Promise.all(
+    data.map(async (t: RawTask) => {
+      try {
+        const { data: full } = await apiClient.get<RawTask>(`/tasks/${t.id}`);
+        console.log(`RAW /tasks/${t.id} response:`, JSON.stringify(full)); // log full task raw
+        return normalizeTask(full);
+      } catch {
+        return normalizeTask(t);
+      }
+    })
+  );
+  
+  return fullTasks;
+},
   /** GET /tasks/today/ */
   getToday: async (): Promise<Task[]> => {
     const { data } = await apiClient.get<RawTask[]>('/tasks/today/');
@@ -95,9 +110,10 @@ export const tasksApi = {
 
   /** PATCH /tasks/{id}/complete */
   complete: async (id: string): Promise<Task> => {
-    const { data } = await apiClient.patch<RawTask>(`/tasks/${id}/complete`);
-    return normalizeTask(data);
-  },
+  const { data } = await apiClient.patch<RawTask>(`/tasks/${id}/complete`);
+  console.log('=== /tasks/complete raw response ===', JSON.stringify(data));
+  return normalizeTask(data);
+},
 
   /** PATCH /tasks/{id}/undo */
   undo: async (id: string): Promise<Task> => {
@@ -107,8 +123,15 @@ export const tasksApi = {
 
   /** Toggle complete/undo depending on current status */
   toggleComplete: async (task: Task): Promise<Task> => {
-    return task.status === 'completed'
-      ? tasksApi.undo(task.id)
-      : tasksApi.complete(task.id);
-  },
+  if (task.status === 'completed') {
+    const result = await tasksApi.undo(task.id);
+    // Force status in case API response is wrong
+    return { ...result, status: 'pending' };
+  } else {
+    const result = await tasksApi.complete(task.id);
+    // Force status in case API response is wrong
+    return { ...result, status: 'completed' };
+  }
+},
+  
 };

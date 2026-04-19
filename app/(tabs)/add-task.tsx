@@ -139,7 +139,7 @@ export default function AddTaskScreen() {
             <View style={styles.headerBtnSpacer} />
           </View>
 
-          <Text style={styles.heroSubtitle}>Let's add</Text>
+          <Text style={styles.heroSubtitle}>Let&apos;s add</Text>
           <Text style={styles.heroTitle}>A NEW TASK</Text>
         </View>
 
@@ -654,6 +654,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+    marginBottom:65
   },
   buttonDisabled: { opacity: 0.6 },
   primaryButtonText: {
