@@ -7,8 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 
-import { COLORS } from '@/src/constants/colors';
-import { FontFamily } from '@/src/constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 import { useCategories } from '@/context/category-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import type { Category } from '@/types/category';

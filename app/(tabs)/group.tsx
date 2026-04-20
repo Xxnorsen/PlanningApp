@@ -19,8 +19,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
-import { COLORS } from '@/src/constants/colors';
-import { FontFamily } from '@/src/constants/fonts';
+import { COLORS } from '@/constants/colors';
+import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { apiClient } from '@/services/api/client';
 
