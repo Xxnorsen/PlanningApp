@@ -535,7 +535,7 @@ export default function PlannerScreen() {
                 textMonthFontSize: 17,
                 textDayHeaderFontSize: 12,
                 dotColor: COLORS.LIME,
-                'stylesheet.calendar.header': {
+                ['stylesheet.calendar.header' as never]: {
                   week: { marginTop: 8, flexDirection: 'row', justifyContent: 'space-around' },
                 },
               }}

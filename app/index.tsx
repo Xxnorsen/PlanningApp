@@ -88,7 +88,7 @@ export default function WelcomeScreen() {
 
         {/* Let's start bubble */}
         <View style={styles.startBubble}>
-          <Text style={styles.startBubbleText}>Let's start!</Text>
+          <Text style={styles.startBubbleText}>Let&apos;s start!</Text>
         </View>
       </View>
 
