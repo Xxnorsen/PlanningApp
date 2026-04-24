@@ -538,7 +538,7 @@ export default function EditTaskScreen() {
             </View>
             <Text style={styles.modalTitle}>Delete Task?</Text>
             <Text style={styles.modalMessage}>
-              Are you sure you want to delete "{task.title}"?
+              Are you sure you want to delete &quot;{task.title}&quot;?
             </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity

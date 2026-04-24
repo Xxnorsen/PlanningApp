@@ -193,7 +193,7 @@ function DeleteModal({
           <View style={styles.delIconWrap}>
             <Ionicons name="trash-outline" size={26} color="#FF4757" />
           </View>
-          <Text style={styles.delTitle}>Delete "{category?.name}"?</Text>
+          <Text style={styles.delTitle}>Delete &quot;{category?.name}&quot;?</Text>
           <Text style={styles.delBody}>Events in this category will be uncategorised.</Text>
 
           {error ? (
