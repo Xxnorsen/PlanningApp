@@ -22,6 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
+import { useTheme } from '@/context/theme-context';
 import { apiClient } from '@/services/api/client';
 
 // ── Small reusable components ─────────────────────────────────────────────────
@@ -60,6 +61,7 @@ function SettingRow({
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
+  const { isDark, toggleTheme, colors } = useTheme();
   const router = useRouter();
 
   const [notifications, setNotifications] = useState(true);
@@ -225,7 +227,7 @@ export default function ProfileScreen() {
         </View>
 
         <SectionHeader title="Preferences" />
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.CARD }]}>
           <SettingRow
             icon="notifications-outline"
             label="Push Notifications"
@@ -233,6 +235,19 @@ export default function ProfileScreen() {
               <Switch
                 value={notifications}
                 onValueChange={setNotifications}
+                trackColor={{ false: COLORS.INPUT_BORDER, true: COLORS.LIME }}
+                thumbColor={COLORS.DARK_TEXT}
+              />
+            }
+          />
+          <View style={[styles.divider, { backgroundColor: colors.INPUT_BORDER }]} />
+          <SettingRow
+            icon={isDark ? 'moon' : 'moon-outline'}
+            label="Dark Mode"
+            right={
+              <Switch
+                value={isDark}
+                onValueChange={toggleTheme}
                 trackColor={{ false: COLORS.INPUT_BORDER, true: COLORS.LIME }}
                 thumbColor={COLORS.DARK_TEXT}
               />

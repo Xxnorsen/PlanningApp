@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { TaskProvider } from '@/context/task-context';
 import { CategoryProvider } from '@/context/category-context';
+import { ThemeProvider } from '@/context/theme-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -43,21 +44,23 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <AuthProvider>
-      <TaskProvider>
-        <CategoryProvider>
-          <AuthGate />
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="categories" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="edit-task" options={{ headerShown: false }} />
-            <Stack.Screen name="completed" options={{ headerShown: false }} />
-          </Stack>
-          <StatusBar style="light" />
-        </CategoryProvider>
-      </TaskProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <TaskProvider>
+          <CategoryProvider>
+            <AuthGate />
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="categories" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="edit-task" options={{ headerShown: false }} />
+              <Stack.Screen name="completed" options={{ headerShown: false }} />
+            </Stack>
+            <StatusBar style="light" />
+          </CategoryProvider>
+        </TaskProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
