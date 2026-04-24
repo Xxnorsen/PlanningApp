@@ -511,11 +511,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.INPUT_BORDER,
   },
-  fieldCardActive: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    marginBottom: 0,
-  },
   fieldRow: { flexDirection: 'row', alignItems: 'center' },
   iconContainer: {
     width: 38, height: 38, borderRadius: 12,
@@ -555,88 +550,6 @@ const styles = StyleSheet.create({
   },
   descriptionCard: { backgroundColor: '#FFFCF5' },
   iosPicker: { backgroundColor: COLORS.CARD, borderRadius: 16, marginBottom: 12 },
-
-  dropdownMenu: {
-    backgroundColor: COLORS.CARD,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: COLORS.INPUT_BORDER,
-    marginBottom: 12,
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    gap: 12,
-  },
-  optionBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.INPUT_BORDER,
-  },
-  optionText: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 15,
-    color: COLORS.DARK_TEXT,
-  },
-  selectedOptionText: {
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.BACKGROUND,
-  },
-  emptyDropdown: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 13,
-    color: COLORS.MUTED_ON_CARD,
-    paddingVertical: 14,
-    textAlign: 'center',
-  },
-  colorDot: { width: 18, height: 18, borderRadius: 9 },
-
-  newCatRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-  },
-  newCatInput: {
-    flex: 1,
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 14,
-    color: COLORS.DARK_TEXT,
-    backgroundColor: COLORS.INPUT_BG,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  newCatBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: COLORS.INPUT_BG,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
-  },
-  newCatBtnPrimary: {
-    backgroundColor: COLORS.LIME,
-    borderColor: COLORS.LIME,
-  },
-
-  priorityRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  priorityChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: 14,
-    paddingVertical: 12,
-    backgroundColor: COLORS.INPUT_BG,
-    borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
-  },
-  priorityChipText: { fontFamily: FontFamily.BOLD, fontSize: 13 },
 
   footer: {
     flexDirection: 'row',

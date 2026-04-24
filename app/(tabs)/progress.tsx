@@ -722,28 +722,10 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
 
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
-    marginTop: 6,
-  },
   sectionTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
     color: COLORS.DARK_TEXT,
-  },
-  sectionBadge: {
-    backgroundColor: COLORS.INPUT_BG,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  sectionBadgeText: {
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.BACKGROUND,
-    fontSize: 12,
   },
 
   tabContainer: {
