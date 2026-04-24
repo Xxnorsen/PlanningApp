@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,7 @@ export default function CompletedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -55,6 +57,21 @@ export default function CompletedScreen() {
     if (!id) return undefined;
     return categories.find((c) => c.id === id)?.name;
   };
+
+  const filteredTasks = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return tasks;
+    return tasks.filter((t) => {
+      const cat = categoryName(t.categoryId)?.toLowerCase() ?? '';
+      return (
+        t.title.toLowerCase().includes(q) ||
+        (t.description?.toLowerCase().includes(q) ?? false) ||
+        cat.includes(q)
+      );
+    });
+    // categoryName depends on `categories` state which is already a dep
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, query, categories]);
 
   const handleUndo = async (task: Task) => {
     try {
@@ -87,6 +104,26 @@ export default function CompletedScreen() {
       <View style={styles.card}>
         <View style={styles.handle} />
 
+        {!loading && tasks.length > 0 && (
+          <View style={styles.searchWrap}>
+            <Ionicons name="search" size={16} color={COLORS.MUTED_ON_CARD} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search completed tasks"
+              placeholderTextColor={COLORS.MUTED_ON_CARD}
+              style={styles.searchInput}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={16} color={COLORS.MUTED_ON_CARD} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {loading ? (
           <View style={styles.center}>
             <LoadingCat size={120} />
@@ -104,10 +141,16 @@ export default function CompletedScreen() {
             <Ionicons name="checkmark-done-circle-outline" size={42} color={COLORS.INPUT_BORDER} />
             <Text style={styles.emptyText}>No completed tasks yet.</Text>
           </View>
+        ) : filteredTasks.length === 0 ? (
+          <View style={styles.center}>
+            <Ionicons name="search-outline" size={42} color={COLORS.INPUT_BORDER} />
+            <Text style={styles.emptyText}>No tasks match &quot;{query}&quot;.</Text>
+          </View>
         ) : (
           <ScrollView
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -116,7 +159,7 @@ export default function CompletedScreen() {
               />
             }
           >
-            {tasks.map((task) => (
+            {filteredTasks.map((task) => (
               <View key={task.id} style={styles.row}>
                 <View style={styles.checkIcon}>
                   <Ionicons name="checkmark" size={14} color="#2ED573" />
@@ -190,6 +233,25 @@ const styles = StyleSheet.create({
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: COLORS.INPUT_BORDER,
     alignSelf: 'center', marginBottom: 20,
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.INPUT_BG,
+    borderWidth: 1,
+    borderColor: COLORS.INPUT_BORDER,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: COLORS.DARK_TEXT,
+    paddingVertical: 4,
   },
   list: { gap: 10, paddingBottom: 120 },
   row: {
