@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState,useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,9 @@ import {
   Modal,
   StatusBar,
   RefreshControl,
-  Dimensions,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { LoadingCat } from '@/components/ui/loading-cat';
-import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,15 +20,14 @@ import { FontFamily } from '@/constants/fonts';
 import { plannerApi } from '@/services/api/planner';
 import { tasksApi } from '@/services/api/tasks';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
-import type { Task, TaskPriority } from '@/types/task';
+import type { Task } from '@/types/task';
 import { useCategories } from '@/context/category-context';
+import { TaskCard, taskStatusLabel } from '@/components/task-card';
+import { DeleteTaskModal } from '@/components/delete-task-modal';
 
 type Filter = 'All' | 'To do' | 'In Progress' | 'Completed';
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const FILTERS: Filter[] = ['All', 'To do', 'In Progress', 'Completed'];
-
-// ── Date helpers ────────────────────────────────────────────────────────────
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -54,162 +51,16 @@ const toIsoDate = (d: Date) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-/** 7 days: 2 before today, today, 4 after */
+// 7 days: 2 before anchor, anchor, 4 after
 const buildDayStrip = (anchor: Date) => {
   const anchorStart = startOfDay(anchor);
   return Array.from({ length: 7 }, (_, i) => {
     const offset = i - 2;
-    const d = new Date(anchorStart.getTime() + offset * MS_PER_DAY);
-    return d;
+    return new Date(anchorStart.getTime() + offset * MS_PER_DAY);
   });
 };
 
-// ── Priority / status helpers ──────────────────────────────────────────────
 
-const priorityIcon: Record<TaskPriority, { icon: IoniconName; bg: string; color: string }> = {
-  high:   { icon: 'flame',           bg: '#FFECEE', color: '#FF4757' },
-  medium: { icon: 'remove-circle',   bg: '#FFF4E5', color: '#FFA502' },
-  low:    { icon: 'leaf',            bg: '#E8F9EE', color: '#2ED573' },
-};
-
-const statusStyle = {
-  Done:         { bg: '#E8F9EE', text: '#2ED573' },
-  'In Progress':{ bg: '#FFF4E5', text: '#FFA502' },
-  'To-do':      { bg: COLORS.INPUT_BG, text: COLORS.BACKGROUND },
-};
-
-function taskStatusLabel(t: Task): keyof typeof statusStyle {
-  if (t.status === 'completed') return 'Done';
-  // Remove the dueDate check — a pending task is just "To-do"
-  return 'To-do';
-}
-
-function formatTime(iso?: string): string {
-  if (!iso) return 'No time';
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-// ── Delete modal ────────────────────────────────────────────────────────────
-
-const CAT_SIZE = 140;
-const CAT_OVERLAP = 70;
-
-interface DeleteModalProps {
-  visible: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  taskTitle: string;
-}
-
-const DeleteModal = ({ visible, onClose, onConfirm, taskTitle }: DeleteModalProps) => (
-  <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-    <View style={styles.modalOverlay}>
-      <View style={styles.modalWrapper}>
-        <View style={styles.catFloatContainer} pointerEvents="none">
-          <Image
-            source={require('@/assets/animations/Blinking Kitty.gif')}
-            style={styles.catVideo}
-            contentFit="contain"
-          />
-        </View>
-        <View style={styles.modalCard}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Delete Event?</Text>
-            <Text style={styles.modalMessage}>
-              Are you sure you want to delete &quot;{taskTitle}&quot;?
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalCancelBtn]}
-                onPress={onClose}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.modalCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalDeleteBtn]}
-                onPress={onConfirm}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.modalDeleteBtnText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
-    </View>
-  </Modal>
-);
-
-// ── Task Card ───────────────────────────────────────────────────────────────
-
-interface TaskCardProps {
-  task: Task;
-  categoryName?: string;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  onToggle: (task: Task) => void;
-}
-
-const TaskCard = ({ task, categoryName, onEdit, onDelete, onToggle }: TaskCardProps) => {
-  const status = taskStatusLabel(task);
-  const s = statusStyle[status];
-  const p = priorityIcon[task.priority];
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.projectName}>{categoryName ?? 'General'}</Text>
-        <View style={[styles.iconCircle, { backgroundColor: p.bg }]}>
-          <Ionicons name={p.icon} size={16} color={p.color} />
-        </View>
-      </View>
-      <Text style={styles.taskTitle} numberOfLines={2}>{task.title}</Text>
-      {task.description ? (
-        <Text style={styles.taskDesc} numberOfLines={2}>{task.description}</Text>
-      ) : null}
-      <View style={styles.cardMeta}>
-        <View style={styles.timeRow}>
-          <Ionicons name="time-outline" size={14} color={COLORS.MUTED_ON_CARD} />
-          <Text style={styles.timeText}>{formatTime(task.dueDate)}</Text>
-        </View>
-        <View style={[styles.badge, { backgroundColor: s.bg }]}>
-          <Text style={[styles.badgeText, { color: s.text }]}>{status}</Text>
-        </View>
-      </View>
-      <View style={styles.cardActions}>
-        <TouchableOpacity
-          style={styles.completeBtn}
-          onPress={() => onToggle(task)}
-          activeOpacity={0.85}
-        >
-          <Ionicons
-            name={task.status === 'completed' ? 'refresh-outline' : 'checkmark'}
-            size={16}
-            color={COLORS.DARK_TEXT}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.editBtn}
-          onPress={() => onEdit(task.id)}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.editBtnText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() => onDelete(task.id)}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.deleteBtnText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
-
-// ── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function PlannerScreen() {
   const router = useRouter();
@@ -472,7 +323,7 @@ export default function PlannerScreen() {
         )}
       </View>
 
-      <DeleteModal
+      <DeleteTaskModal
         visible={deleteModalVisible}
         onClose={cancelDelete}
         onConfirm={confirmDelete}
@@ -730,101 +581,6 @@ const styles = StyleSheet.create({
     gap: 14,
   },
 
-  card: {
-    backgroundColor: COLORS.CARD,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
-    shadowColor: COLORS.BACKGROUND,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  projectName: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 12,
-    color: COLORS.MUTED_ON_CARD,
-    flex: 1,
-  },
-  iconCircle: {
-    width: 34, height: 34, borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  taskTitle: {
-    fontFamily: FontFamily.BOLD,
-    fontSize: 16,
-    color: COLORS.DARK_TEXT,
-    marginBottom: 4,
-  },
-  taskDesc: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 13,
-    color: COLORS.MUTED_ON_CARD,
-    marginBottom: 10,
-    lineHeight: 18,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-    marginTop: 4,
-  },
-  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  timeText: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 13,
-    color: COLORS.MUTED_ON_CARD,
-  },
-
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { fontFamily: FontFamily.BOLD, fontSize: 11 },
-
-  cardActions: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  completeBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: COLORS.LIME,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editBtn: {
-    flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
-    borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  editBtnText: {
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
-    fontSize: 14,
-  },
-  deleteBtn: {
-    flex: 1,
-    backgroundColor: COLORS.INPUT_BG,
-    borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
-  },
-  deleteBtnText: {
-    fontFamily: FontFamily.BOLD,
-    color: '#FF4757',
-    fontSize: 14,
-  },
-
   centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   calOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
@@ -886,88 +642,5 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.BOLD,
     fontSize: 14,
     color: COLORS.DARK_TEXT,
-  },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(26,26,46,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  modalWrapper: {
-    width: '100%',
-    maxWidth: 320,
-    alignItems: 'center',
-  },
-  catFloatContainer: {
-    width: CAT_SIZE,
-    height: CAT_SIZE,
-    backgroundColor: 'transparent',
-    marginBottom: -CAT_OVERLAP,
-    left: 100,
-    zIndex: 10,
-  },
-  catVideo: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'transparent',
-  },
-  modalCard: {
-    backgroundColor: COLORS.CARD,
-    borderRadius: 24,
-    width: '100%',
-    shadowColor: COLORS.BACKGROUND,
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
-    overflow: 'visible',
-    zIndex: 12,
-  },
-  modalContent: {
-    alignItems: 'center',
-    paddingTop: CAT_OVERLAP + 12,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-  modalTitle: {
-    fontFamily: FontFamily.BOLD,
-    fontSize: 20,
-    color: COLORS.DARK_TEXT,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  modalMessage: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  modalActions: { flexDirection: 'row', gap: 12, width: '100%' },
-  modalBtn: {
-    flex: 1,
-    borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  modalCancelBtn: {
-    backgroundColor: COLORS.INPUT_BG,
-    borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
-  },
-  modalDeleteBtn: { backgroundColor: '#FF4757' },
-  modalCancelBtnText: {
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.MUTED_ON_CARD,
-    fontSize: 15,
-  },
-  modalDeleteBtnText: {
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
-    fontSize: 15,
   },
 });

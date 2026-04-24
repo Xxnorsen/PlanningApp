@@ -11,7 +11,6 @@ import {
   Animated,
   LayoutAnimation,
   UIManager,
-  Alert,
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,31 +25,19 @@ import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
 import { tasksApi } from '@/services/api/tasks';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
+import { PriorityPicker } from '@/components/priority-picker';
+import { CategoryPicker } from '@/components/category-picker';
 import type { Task, TaskPriority } from '@/types/task';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
-const PRIORITY_OPTIONS: { value: TaskPriority; label: string; color: string; icon: IoniconName }[] = [
-  { value: 'low',    label: 'Low',    color: '#2ED573', icon: 'chevron-down-circle-outline' },
-  { value: 'medium', label: 'Medium', color: '#FFA502', icon: 'remove-circle-outline' },
-  { value: 'high',   label: 'High',   color: '#FF4757', icon: 'chevron-up-circle-outline' },
-];
-
-const CATEGORY_COLORS = ['#4A4AE8', '#FF9BCC', '#C8FF3E', '#FFA502', '#2ED573', '#FF4757', '#7070CC'];
-
 export default function EditTaskScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { updateTask, deleteTask, toggleComplete, isLoading } = useTasks();
-  const { categories, fetchAll: fetchCategories, createCategory } = useCategories();
-
-  const [showNewCatInput, setShowNewCatInput] = useState(false);
-  const [newCatName, setNewCatName] = useState('');
-  const [creatingCat, setCreatingCat] = useState(false);
+  const { fetchAll: fetchCategories } = useCategories();
 
   const [loading, setLoading] = useState(true);
   const [task, setTask] = useState<Task | null>(null);
@@ -95,8 +82,6 @@ export default function EditTaskScreen() {
       }
     })();
   }, [id, fetchCategories]);
-
-  const selectedCategory = categories.find(c => c.id === categoryId);
 
   const formatDate = (date: Date) =>
     date.toLocaleDateString('en-GB', {
@@ -170,26 +155,6 @@ export default function EditTaskScreen() {
       setError(err.message);
       showApiErrorAlert(err);
       setConfirmDelete(false);
-    }
-  };
-
-  const handleCreateCategory = async () => {
-    const name = newCatName.trim();
-    if (!name) return;
-    setCreatingCat(true);
-    try {
-      const color = CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length];
-      const cat = await createCategory({ name, color });
-      setCategoryId(cat.id);
-      setNewCatName('');
-      setShowNewCatInput(false);
-      toggleCategoriesMenu();
-    } catch (e) {
-      const err = toApiError(e);
-      setError(err.message);
-      showApiErrorAlert(err);
-    } finally {
-      setCreatingCat(false);
     }
   };
 
@@ -314,122 +279,14 @@ export default function EditTaskScreen() {
               />
             </View>
 
-            {/* Category */}
-            <TouchableOpacity
-              style={[
-                styles.fieldCard,
-                showCategories && styles.fieldCardActive,
-              ]}
-              activeOpacity={0.8}
-              onPress={toggleCategoriesMenu}
-            >
-              <View style={styles.fieldRow}>
-                <View style={[styles.iconContainer, { backgroundColor: '#FDECF1' }]}>
-                  <Ionicons name="grid-outline" size={18} color="#E91E63" />
-                </View>
-                <View style={styles.textContainer}>
-                  <Text style={styles.label}>Category</Text>
-                  <Text style={styles.valueText}>
-                    {selectedCategory?.name ?? 'None'}
-                  </Text>
-                </View>
-                <Animated.View style={{ transform: [{ rotate: arrowRotation }] }}>
-                  <Ionicons name="chevron-down" size={18} color={COLORS.MUTED_ON_CARD} />
-                </Animated.View>
-              </View>
-            </TouchableOpacity>
-
-            {showCategories && (
-              <View style={styles.dropdownMenu}>
-                <TouchableOpacity
-                  style={[styles.optionItem, styles.optionBorder]}
-                  onPress={() => {
-                    setCategoryId(undefined);
-                    toggleCategoriesMenu();
-                  }}
-                >
-                  <Ionicons name="close-circle-outline" size={18} color={COLORS.MUTED_ON_CARD} />
-                  <Text style={[styles.optionText, !categoryId && styles.selectedOptionText]}>
-                    None
-                  </Text>
-                </TouchableOpacity>
-
-                {categories.map(cat => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[styles.optionItem, styles.optionBorder]}
-                    onPress={() => {
-                      setCategoryId(cat.id);
-                      toggleCategoriesMenu();
-                    }}
-                  >
-                    <View style={[styles.colorDot, { backgroundColor: cat.color }]} />
-                    <Text
-                      style={[
-                        styles.optionText,
-                        categoryId === cat.id && styles.selectedOptionText,
-                      ]}
-                    >
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-
-                {categories.length === 0 && (
-                  <Text style={styles.emptyDropdown}>
-                    No categories yet. Create your first one below.
-                  </Text>
-                )}
-
-                {showNewCatInput ? (
-                  <View style={styles.newCatRow}>
-                    <TextInput
-                      style={styles.newCatInput}
-                      value={newCatName}
-                      onChangeText={setNewCatName}
-                      placeholder="Category name"
-                      placeholderTextColor={COLORS.MUTED_ON_CARD}
-                      autoFocus
-                      onSubmitEditing={handleCreateCategory}
-                      returnKeyType="done"
-                    />
-                    <TouchableOpacity
-                      style={[styles.newCatBtn, styles.newCatBtnPrimary]}
-                      onPress={handleCreateCategory}
-                      disabled={creatingCat || !newCatName.trim()}
-                      activeOpacity={0.85}
-                    >
-                      {creatingCat ? (
-                        <LoadingCat size={24} />
-                      ) : (
-                        <Ionicons name="checkmark" size={18} color={COLORS.DARK_TEXT} />
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.newCatBtn}
-                      onPress={() => {
-                        setNewCatName('');
-                        setShowNewCatInput(false);
-                      }}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="close" size={18} color={COLORS.MUTED_ON_CARD} />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.optionItem}
-                    onPress={() => setShowNewCatInput(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="add-circle" size={18} color={COLORS.BACKGROUND} />
-                    <Text style={[styles.optionText, { color: COLORS.BACKGROUND, fontFamily: FontFamily.BOLD }]}>
-                      New Category
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
+            <CategoryPicker
+              value={categoryId}
+              onChange={setCategoryId}
+              open={showCategories}
+              onToggle={toggleCategoriesMenu}
+              arrowRotation={arrowRotation}
+              activeFieldStyle
+            />
 
             {/* Due Date */}
             <TouchableOpacity
@@ -470,40 +327,7 @@ export default function EditTaskScreen() {
               />
             )}
 
-            {/* Priority */}
-            <Text style={[styles.labelSolo, { marginTop: 4, marginBottom: 8, marginLeft: 4 }]}>
-              Priority
-            </Text>
-            <View style={styles.priorityRow}>
-              {PRIORITY_OPTIONS.map(opt => {
-                const active = priority === opt.value;
-                return (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[
-                      styles.priorityChip,
-                      active && { backgroundColor: opt.color, borderColor: opt.color },
-                    ]}
-                    onPress={() => setPriority(opt.value)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={opt.icon}
-                      size={16}
-                      color={active ? COLORS.WHITE_TEXT : opt.color}
-                    />
-                    <Text
-                      style={[
-                        styles.priorityChipText,
-                        { color: active ? COLORS.WHITE_TEXT : opt.color },
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <PriorityPicker value={priority} onChange={setPriority} />
           </ScrollView>
 
           {/* Footer */}
@@ -687,11 +511,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.INPUT_BORDER,
   },
-  fieldCardActive: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    marginBottom: 0,
-  },
   fieldRow: { flexDirection: 'row', alignItems: 'center' },
   iconContainer: {
     width: 38, height: 38, borderRadius: 12,
@@ -731,88 +550,6 @@ const styles = StyleSheet.create({
   },
   descriptionCard: { backgroundColor: '#FFFCF5' },
   iosPicker: { backgroundColor: COLORS.CARD, borderRadius: 16, marginBottom: 12 },
-
-  dropdownMenu: {
-    backgroundColor: COLORS.CARD,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: COLORS.INPUT_BORDER,
-    marginBottom: 12,
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    gap: 12,
-  },
-  optionBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.INPUT_BORDER,
-  },
-  optionText: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 15,
-    color: COLORS.DARK_TEXT,
-  },
-  selectedOptionText: {
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.BACKGROUND,
-  },
-  emptyDropdown: {
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 13,
-    color: COLORS.MUTED_ON_CARD,
-    paddingVertical: 14,
-    textAlign: 'center',
-  },
-  colorDot: { width: 18, height: 18, borderRadius: 9 },
-
-  newCatRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-  },
-  newCatInput: {
-    flex: 1,
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 14,
-    color: COLORS.DARK_TEXT,
-    backgroundColor: COLORS.INPUT_BG,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  newCatBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: COLORS.INPUT_BG,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
-  },
-  newCatBtnPrimary: {
-    backgroundColor: COLORS.LIME,
-    borderColor: COLORS.LIME,
-  },
-
-  priorityRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  priorityChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: 14,
-    paddingVertical: 12,
-    backgroundColor: COLORS.INPUT_BG,
-    borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
-  },
-  priorityChipText: { fontFamily: FontFamily.BOLD, fontSize: 13 },
 
   footer: {
     flexDirection: 'row',

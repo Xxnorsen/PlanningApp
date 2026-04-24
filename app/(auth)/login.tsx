@@ -15,8 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { AuthHeader } from '@/components/auth/auth-header';
-import { InputField } from '@/components/auth/input-field';
+import { AuthHeader } from '@/components/auth-header';
+import { InputField } from '@/components/input-field';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';

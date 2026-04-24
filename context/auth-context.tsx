@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from '@/types/user';
 import { authApi } from '@/services/api/auth';
-import { storage, STORAGE_KEYS } from '@/services/storage/local-storage';
+import { storage, STORAGE_KEYS } from '@/services/local-storage';
 import { registerUnauthorizedHandler } from '@/services/api/errors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────

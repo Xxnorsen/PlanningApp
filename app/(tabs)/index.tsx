@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native';
-import TaskDashboard from '@/components/task/task-dashboard';
+import TaskDashboard from '@/components/task-dashboard';
 import { COLORS } from '@/constants/colors';
 
 export default function TasksScreen() {

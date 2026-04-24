@@ -19,55 +19,15 @@ import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { progressApi, type ProgressData } from '@/services/api/progress';
-import { showApiErrorAlert } from '@/services/api/errors';
 import { tasksApi } from '@/services/api/tasks';
 import { categoriesApi } from '@/services/api/categories';
 import type { Task } from '@/types/task';
 import type { Category } from '@/types/category';
 import { plannerApi } from '@/services/api/planner';
-
+import { CircularProgress } from '@/components/circular-progress';
+import { WeeklyBarChart, type ProgressTab } from '@/components/weekly-bar-chart';
 
 const { width } = Dimensions.get('window');
-
-// ── Large Circular Progress Component ──────────────────────────────────────────
-
-const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
-  const size = 80;
-  const strokeWidth = 7;
-  const pct = Math.max(0, Math.min(100, progress));
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: 'rgba(255,255,255,0.25)',
-        }}
-      />
-      {pct > 0 && (
-        <View
-          style={{
-            position: 'absolute',
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: strokeWidth,
-            borderColor: COLORS.LIME,
-            borderBottomColor: 'transparent',
-            borderLeftColor: 'transparent',
-            transform: [{ rotate: '-45deg' }],
-          }}
-        />
-      )}
-      <Text style={styles.progressPct}>{pct}%</Text>
-    </View>
-  );
-};
-
-// ── Tab Button Component ───────────────────────────────────────────────────────
 
 interface TabButtonProps {
   title: string;
@@ -75,206 +35,17 @@ interface TabButtonProps {
   onPress: () => void;
 }
 
-const TabButton: React.FC<TabButtonProps> = ({ title, isActive, onPress }) => {
-  return (
-    <TouchableOpacity
-      style={[styles.tabButton, isActive && styles.tabButtonActive]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <Text style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}>
-        {title}
-      </Text>
-    </TouchableOpacity>
-  );
-};
-
-// ── Bar Chart Component ───────────────────────────────────────────────────────
-
-interface WeeklyBarChartProps {
-  tasks: Task[];
-  selectedTab: 'Daily' | 'Weekly' | 'Monthly';
-}
-
-const WeeklyBarChart: React.FC<WeeklyBarChartProps> = ({ tasks, selectedTab }) => {
-  // Calculate data based on selected tab
-  const getDailyData = () => {
-  const today = new Date();
-  const currentHour = today.getHours();
-
-  const blocks = [
-    { start: 0,  end: 2,  label: '12AM' },
-    { start: 3,  end: 5,  label: '3AM'  },
-    { start: 6,  end: 8,  label: '6AM'  },
-    { start: 9,  end: 11, label: '9AM' },
-    { start: 12, end: 14, label: '12PM' },
-    { start: 15, end: 17, label: '3PM'  },
-    { start: 18, end: 20, label: '6PM'  },
-    { start: 21, end: 23, label: '9PM' },
-  ];
-
-  // Get all completed tasks for today
-  const todayCompleted = tasks.filter(task => {
-    if (task.status !== 'completed') return false;
-    // Use dueDate as the date reference since backend has no completedAt
-    const ref = task.completedAt ?? task.dueDate;
-    if (!ref) return false;
-    const d = new Date(ref);
-    return (
-      d.getFullYear() === today.getFullYear() &&
-      d.getMonth() === today.getMonth() &&
-      d.getDate() === today.getDate()
-    );
-  });
-
-  // Find which block the current hour falls in
-  const currentBlockIndex = blocks.findIndex(
-    b => currentHour >= b.start && currentHour <= b.end
-  );
-
-  return blocks.map((block, index) => {
-    // Only show completed tasks in the current time block
-    // since we have no real per-hour data from the backend
-    const isCurrentBlock = index === currentBlockIndex;
-    const value = isCurrentBlock
-      ? Math.min(100, (todayCompleted.length / 3) * 100)
-      : 0;
-
-    return { day: block.label, value };
-  });
-};
-
-  const getWeeklyData = () => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const today = new Date();
-    
-    return days.map((day, index) => {
-      const targetDate = new Date(today);
-      targetDate.setDate(today.getDate() - today.getDay() + index);
-      
-      const dayTasks = tasks.filter(task => {
-        // Check if task is completed
-        if (task.status !== 'completed') return false;
-        
-        // If completedAt exists, use it for precise date filtering
-        if (task.completedAt) {
-          const completedDate = new Date(task.completedAt);
-          return completedDate.toDateString() === targetDate.toDateString();
-        }
-        
-        // Fallback: if no completedAt, use updatedAt for date filtering
-        const updatedDate = new Date(task.updatedAt);
-        return updatedDate.toDateString() === targetDate.toDateString();
-      });
-      
-      const completionRate = Math.min(100, (dayTasks.length / 10) * 100);
-      
-      return { day: day.slice(0, 3), value: completionRate };
-    });
-  };
-
-  const getMonthlyData = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    // Group by weeks (4 weeks)
-    const weeks = [];
-    for (let week = 0; week < 4; week++) {
-      const startDay = week * 7 + 1;
-      const endDay = Math.min(startDay + 6, daysInMonth);
-      
-      const weekTasks = tasks.filter(task => {
-        // Check if task is completed
-        if (task.status !== 'completed') return false;
-        
-        // If completedAt exists, use it for precise date filtering
-        if (task.completedAt) {
-          const completedDate = new Date(task.completedAt);
-          return completedDate.getFullYear() === year &&
-                 completedDate.getMonth() === month &&
-                 completedDate.getDate() >= startDay &&
-                 completedDate.getDate() <= endDay;
-        }
-        
-        // Fallback: if no completedAt, use updatedAt for date filtering
-        const updatedDate = new Date(task.updatedAt);
-        return updatedDate.getFullYear() === year &&
-               updatedDate.getMonth() === month &&
-               updatedDate.getDate() >= startDay &&
-               updatedDate.getDate() <= endDay;
-      });
-      
-      const completionRate = Math.min(100, (weekTasks.length / 20) * 100); // Max 20 tasks per week
-      
-      weeks.push({
-        day: `W${week + 1}`,
-        value: completionRate
-      });
-    }
-    
-    return weeks;
-  };
-
-  const getChartData = () => {
-    switch (selectedTab) {
-      case 'Daily':
-        return getDailyData();
-      case 'Weekly':
-        return getWeeklyData();
-      case 'Monthly':
-        return getMonthlyData();
-      default:
-        return getWeeklyData();
-    }
-  };
-
-  const weekData = getChartData();
-  
-  const maxValue = Math.max(...weekData.map(d => d.value), 1); // Ensure at least 1 to avoid division by zero
-  
-  // Check if there's any progress in the chart
-  const hasProgress = weekData.some(item => item.value > 0);
-
-  if (!hasProgress) {
-    return (
-      <View style={styles.emptyChartContainer}>
-        <Ionicons
-          name="bar-chart-outline"
-          size={48}
-          color={COLORS.INPUT_BORDER}
-        />
-        <Text style={styles.emptyChartText}>
-          Every big goal starts with a small task. Complete one to unlock your first Task!
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.chartContainer}>
-      <View style={styles.chartBars}>
-        {weekData.map((item, index) => (
-          <View key={index} style={styles.chartBarContainer}>
-            <View
-              style={[
-                styles.chartBar,
-                {
-                  height: (item.value / maxValue) * 100,
-                  backgroundColor: item.value > 70 ? COLORS.LIME : '#E8F9EE',
-                },
-              ]}
-            />
-            <Text style={styles.chartDay}>{item.day}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-};
-
-// ── Achievement Card Component ─────────────────────────────────────────────────
+const TabButton: React.FC<TabButtonProps> = ({ title, isActive, onPress }) => (
+  <TouchableOpacity
+    style={[styles.tabButton, isActive && styles.tabButtonActive]}
+    onPress={onPress}
+    activeOpacity={0.8}
+  >
+    <Text style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}>
+      {title}
+    </Text>
+  </TouchableOpacity>
+);
 
 interface AchievementCardProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -283,26 +54,23 @@ interface AchievementCardProps {
   color: string;
 }
 
-const AchievementCard: React.FC<AchievementCardProps> = ({ icon, title, description, color }) => {
-  return (
-    <View style={styles.achievementCard}>
-      <View style={[styles.achievementIcon, { backgroundColor: color + '22' }]}>
-        <Ionicons name={icon} size={24} color={color} />
-      </View>
-      <View style={styles.achievementContent}>
-        <Text style={styles.achievementTitle}>{title}</Text>
-        <Text style={styles.achievementDescription}>{description}</Text>
-      </View>
+const AchievementCard: React.FC<AchievementCardProps> = ({ icon, title, description, color }) => (
+  <View style={styles.achievementCard}>
+    <View style={[styles.achievementIcon, { backgroundColor: color + '22' }]}>
+      <Ionicons name={icon} size={24} color={color} />
     </View>
-  );
-};
+    <View style={styles.achievementContent}>
+      <Text style={styles.achievementTitle}>{title}</Text>
+      <Text style={styles.achievementDescription}>{description}</Text>
+    </View>
+  </View>
+);
 
-// ── Main Progress Screen Component ─────────────────────────────────────────────
 
 export default function ProgressScreen() {
   const router = useRouter();
   const { user, sessionSticker, rotateSticker } = useAuth();
-  const [selectedTab, setSelectedTab] = useState<'Daily' | 'Weekly' | 'Monthly'>('Weekly');
+  const [selectedTab, setSelectedTab] = useState<ProgressTab>('Weekly');
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -340,19 +108,6 @@ export default function ProgressScreen() {
   categoriesApi.getAll().catch(() => []),
   plannerApi.getDaily(toIsoDate(today)).catch(() => ({ date: '', tasks: [] })),
 ]);
-
-console.log('=== Progress Debug ===');
-console.log('getCompleted tasks:', t.map(task => ({ 
-  id: task.id, 
-  status: task.status, 
-  completedAt: task.completedAt,
-  updatedAt: task.updatedAt 
-})));
-console.log('todayPlan tasks:', todayPlan.tasks.map(task => ({ 
-  id: task.id, 
-  status: task.status,
-  completedAt: task.completedAt,
-})));
 
     // Merge today's planner tasks into completed list
     const todayCompleted = todayPlan.tasks.filter(t => t.status === 'completed');
@@ -705,11 +460,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
-  progressPct: {
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
-    fontSize: 18,
-  },
 
   card: {
     flexGrow: 1,
@@ -736,28 +486,10 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
 
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
-    marginTop: 6,
-  },
   sectionTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
     color: COLORS.DARK_TEXT,
-  },
-  sectionBadge: {
-    backgroundColor: COLORS.INPUT_BG,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  sectionBadgeText: {
-    fontFamily: FontFamily.BOLD,
-    color: COLORS.BACKGROUND,
-    fontSize: 12,
   },
 
   tabContainer: {
@@ -792,31 +524,6 @@ const styles = StyleSheet.create({
     color: COLORS.DARK_TEXT,
     marginBottom: 16,
     fontFamily: FontFamily.BOLD,
-  },
-
-  chartContainer: {
-    height: 150,
-  },
-  chartBars: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    height: 120,
-  },
-  chartBarContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  chartBar: {
-    width: 20,
-    borderRadius: 10,
-    marginBottom: 8,
-  },
-  chartDay: {
-    fontSize: 10,
-    color: COLORS.MUTED_ON_CARD,
-    fontFamily: FontFamily.REGULAR,
   },
 
   achievementsList: {
@@ -862,20 +569,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   emptyAchievementsText: {
-    fontSize: 16,
-    color: COLORS.MUTED_ON_CARD,
-    fontFamily: FontFamily.REGULAR,
-    textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 20,
-  },
-
-  emptyChartContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 16,
-  },
-  emptyChartText: {
     fontSize: 16,
     color: COLORS.MUTED_ON_CARD,
     fontFamily: FontFamily.REGULAR,
