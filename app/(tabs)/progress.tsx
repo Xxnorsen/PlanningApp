@@ -19,7 +19,6 @@ import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { progressApi, type ProgressData } from '@/services/api/progress';
-import { showApiErrorAlert } from '@/services/api/errors';
 import { tasksApi } from '@/services/api/tasks';
 import { categoriesApi } from '@/services/api/categories';
 import type { Task } from '@/types/task';
@@ -340,19 +339,6 @@ export default function ProgressScreen() {
   categoriesApi.getAll().catch(() => []),
   plannerApi.getDaily(toIsoDate(today)).catch(() => ({ date: '', tasks: [] })),
 ]);
-
-console.log('=== Progress Debug ===');
-console.log('getCompleted tasks:', t.map(task => ({ 
-  id: task.id, 
-  status: task.status, 
-  completedAt: task.completedAt,
-  updatedAt: task.updatedAt 
-})));
-console.log('todayPlan tasks:', todayPlan.tasks.map(task => ({ 
-  id: task.id, 
-  status: task.status,
-  completedAt: task.completedAt,
-})));
 
     // Merge today's planner tasks into completed list
     const todayCompleted = todayPlan.tasks.filter(t => t.status === 'completed');

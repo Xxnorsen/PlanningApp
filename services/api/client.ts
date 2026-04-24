@@ -6,7 +6,7 @@
 import axios, { AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Config } from '@/constants/config';
-import { STORAGE_KEYS } from '@/services/storage/local-storage';
+import { STORAGE_KEYS } from '@/services/local-storage';
 import { classifyAxiosError, triggerUnauthorized } from './errors';
 
 export const apiClient = axios.create({
