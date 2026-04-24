@@ -185,7 +185,7 @@ export default function PlannerScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.BACKGROUND} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.ACCENT} />
 
       {/* ── Purple hero ── */}
       <View style={styles.hero}>
@@ -290,7 +290,7 @@ export default function PlannerScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={() => load(selectedDate, activeFilter, true)}
-                tintColor={colors.BACKGROUND}
+                tintColor={colors.ACCENT}
               />
             }
           >
@@ -351,22 +351,22 @@ export default function PlannerScreen() {
               onDayPress={(day: { dateString: string }) => setCalPickedDate(day.dateString)}
               markedDates={{
                 ...(calPickedDate
-                  ? { [calPickedDate]: { selected: true, selectedColor: colors.BACKGROUND } }
-                  : { [toIsoDate(selectedDate)]: { selected: true, selectedColor: colors.BACKGROUND } }),
+                  ? { [calPickedDate]: { selected: true, selectedColor: colors.ACCENT } }
+                  : { [toIsoDate(selectedDate)]: { selected: true, selectedColor: colors.ACCENT } }),
                 [toIsoDate(today)]: (calPickedDate === toIsoDate(today) || (!calPickedDate && isSameDay(selectedDate, today)))
-                  ? { selected: true, selectedColor: colors.BACKGROUND }
+                  ? { selected: true, selectedColor: colors.ACCENT }
                   : { marked: true, dotColor: colors.LIME },
               }}
               theme={{
                 backgroundColor: colors.CARD,
                 calendarBackground: colors.CARD,
-                todayTextColor: colors.BACKGROUND,
-                selectedDayBackgroundColor: colors.BACKGROUND,
+                todayTextColor: colors.ACCENT,
+                selectedDayBackgroundColor: colors.ACCENT,
                 selectedDayTextColor: '#fff',
                 dayTextColor: colors.DARK_TEXT,
                 textDisabledColor: colors.INPUT_BORDER,
                 monthTextColor: colors.DARK_TEXT,
-                arrowColor: colors.BACKGROUND,
+                arrowColor: colors.ACCENT,
                 textDayFontFamily: FontFamily.REGULAR,
                 textMonthFontFamily: FontFamily.BOLD,
                 textDayHeaderFontFamily: FontFamily.BOLD,
@@ -392,7 +392,7 @@ export default function PlannerScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <Ionicons name="today-outline" size={16} color={colors.BACKGROUND} />
+                <Ionicons name="today-outline" size={16} color={colors.ACCENT} />
                 <Text style={styles.calSecondaryBtnText}>Today</Text>
               </TouchableOpacity>
 
@@ -569,8 +569,8 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   filterChipActive: {
-    backgroundColor: colors.BACKGROUND,
-    borderColor: colors.BACKGROUND,
+    backgroundColor: colors.ACCENT,
+    borderColor: colors.ACCENT,
   },
   filterText: {
     fontFamily: FontFamily.BOLD,
@@ -611,10 +611,10 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
 
   calSecondaryBtn: {
     flex: 1, height: 48, borderRadius: 24, borderWidth: 1.5,
-    borderColor: colors.BACKGROUND, flexDirection: 'row',
+    borderColor: colors.ACCENT, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  calSecondaryBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.BACKGROUND },
+  calSecondaryBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT },
 
   calViewBtn: {
     flex: 1.2, height: 48, borderRadius: 24,

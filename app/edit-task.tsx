@@ -299,7 +299,7 @@ export default function EditTaskScreen() {
             >
               <View style={styles.fieldRow}>
                 <View style={[styles.iconContainer, { backgroundColor: colors.INPUT_BG }]}>
-                  <Ionicons name="calendar-outline" size={18} color={colors.BACKGROUND} />
+                  <Ionicons name="calendar-outline" size={18} color={colors.ACCENT} />
                 </View>
                 <View style={styles.textContainer}>
                   <Text style={styles.label}>Due Date</Text>
@@ -325,7 +325,7 @@ export default function EditTaskScreen() {
                 onChange={onDateChange}
                 themeVariant="light"
                 textColor={colors.DARK_TEXT}
-                accentColor={colors.BACKGROUND}
+                accentColor={colors.ACCENT}
                 style={Platform.OS === 'ios' ? styles.iosPicker : null}
               />
             )}

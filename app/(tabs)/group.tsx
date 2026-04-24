@@ -53,7 +53,7 @@ export default function ProfileScreen() {
   }) => (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
       <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
-        <Ionicons name={icon as any} size={18} color={danger ? '#FF4757' : colors.BACKGROUND} />
+        <Ionicons name={icon as any} size={18} color={danger ? '#FF4757' : colors.ACCENT} />
       </View>
       <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
       {right ?? (onPress && !danger
@@ -462,7 +462,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     position: 'absolute', bottom: 0, right: 0,
     width: 26, height: 26, borderRadius: 13,
     backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.BACKGROUND,
+    borderWidth: 2, borderColor: colors.ACCENT,
   },
   heroName: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.WHITE_TEXT, marginBottom: 4 },
   heroEmail: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: colors.MUTED_ON_DARK },
@@ -510,9 +510,9 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.INPUT_BG, borderWidth: 1, borderColor: colors.INPUT_BORDER,
   },
   photoRemoveBtn: { borderColor: '#FFCDD2', backgroundColor: '#FFF5F5' },
-  photoActionText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.BACKGROUND },
+  photoActionText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT },
 
-  inputLabel: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.BACKGROUND, marginBottom: 6 },
+  inputLabel: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT, marginBottom: 6 },
   input: {
     backgroundColor: colors.INPUT_BG,
     borderRadius: 12, borderWidth: 1, borderColor: colors.INPUT_BORDER,
@@ -538,7 +538,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   successBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.BACKGROUND, borderRadius: 14,
+    backgroundColor: colors.ACCENT, borderRadius: 14,
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   bannerText: {

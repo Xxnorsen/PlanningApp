@@ -390,7 +390,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FF4757', borderRadius: 12, padding: 12, marginBottom: 12 },
   errorText: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: '#fff', flex: 1 },
 
-  label: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.BACKGROUND, marginBottom: 8 },
+  label: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT, marginBottom: 8 },
   input: { backgroundColor: colors.INPUT_BG, borderRadius: 12, borderWidth: 1, borderColor: colors.INPUT_BORDER, paddingHorizontal: 14, paddingVertical: 12, fontFamily: FontFamily.REGULAR, fontSize: 15, color: colors.DARK_TEXT, marginBottom: 16 },
   inputError: { borderColor: '#FF4757' },
 

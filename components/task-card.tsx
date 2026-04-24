@@ -20,7 +20,7 @@ type AppColors = { readonly [K in keyof typeof COLORS]: string };
 const statusStyleFor = (colors: AppColors) => ({
   Done:          { bg: '#E8F9EE', text: '#2ED573' },
   'In Progress': { bg: '#FFF4E5', text: '#FFA502' },
-  'To-do':       { bg: colors.INPUT_BG, text: colors.BACKGROUND },
+  'To-do':       { bg: colors.INPUT_BG, text: colors.ACCENT },
 });
 
 export type TaskStatusLabel = 'Done' | 'In Progress' | 'To-do';
@@ -172,7 +172,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   editBtn: {
     flex: 1,
-    backgroundColor: colors.BACKGROUND,
+    backgroundColor: colors.ACCENT,
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',

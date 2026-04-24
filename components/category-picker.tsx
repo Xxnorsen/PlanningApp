@@ -165,8 +165,8 @@ export function CategoryPicker({
               onPress={() => setShowNewInput(true)}
               activeOpacity={0.8}
             >
-              <Ionicons name="add-circle" size={18} color={colors.BACKGROUND} />
-              <Text style={[styles.optionText, { color: colors.BACKGROUND, fontFamily: FontFamily.BOLD }]}>
+              <Ionicons name="add-circle" size={18} color={colors.ACCENT} />
+              <Text style={[styles.optionText, { color: colors.ACCENT, fontFamily: FontFamily.BOLD }]}>
                 New Category
               </Text>
             </TouchableOpacity>

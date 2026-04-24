@@ -176,7 +176,7 @@ export default function AddTaskScreen() {
             >
               <View style={styles.fieldRow}>
                 <View style={[styles.iconContainer, { backgroundColor: colors.INPUT_BG }]}>
-                  <Ionicons name="calendar-outline" size={18} color={colors.BACKGROUND} />
+                  <Ionicons name="calendar-outline" size={18} color={colors.ACCENT} />
                 </View>
                 <View style={styles.textContainer}>
                   <Text style={styles.label}>Due Date</Text>
@@ -200,17 +200,17 @@ export default function AddTaskScreen() {
                     <Calendar
                       onDayPress={onDaySelect}
                       markedDates={dueDate ? {
-                        [dueDate.toISOString().split('T')[0]]: { selected: true, selectedColor: colors.BACKGROUND },
+                        [dueDate.toISOString().split('T')[0]]: { selected: true, selectedColor: colors.ACCENT },
                       } : {}}
                       theme={{
                         backgroundColor: colors.CARD,
                         calendarBackground: colors.CARD,
-                        selectedDayBackgroundColor: colors.BACKGROUND,
+                        selectedDayBackgroundColor: colors.ACCENT,
                         selectedDayTextColor: colors.WHITE_TEXT,
-                        todayTextColor: colors.BACKGROUND,
+                        todayTextColor: colors.ACCENT,
                         dayTextColor: colors.DARK_TEXT,
                         textDisabledColor: colors.MUTED_ON_CARD,
-                        arrowColor: colors.BACKGROUND,
+                        arrowColor: colors.ACCENT,
                         monthTextColor: colors.DARK_TEXT,
                         textDayFontFamily: FontFamily.REGULAR,
                         textMonthFontFamily: FontFamily.BOLD,

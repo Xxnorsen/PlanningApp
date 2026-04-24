@@ -512,7 +512,7 @@ const TaskDashboard: React.FC = () => {
                   activeOpacity={0.7}
                   style={{ marginLeft: 'auto' }}
                 >
-                  <Text style={{ fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.BACKGROUND }}>
+                  <Text style={{ fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT }}>
                     View all
                   </Text>
                 </TouchableOpacity>
@@ -750,7 +750,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   sectionBadgeText: {
     fontFamily: FontFamily.BOLD,
-    color: colors.BACKGROUND,
+    color: colors.ACCENT,
     fontSize: 12,
   },
 
@@ -893,7 +893,7 @@ taskGroupInfo: { flex: 1 },
   },
   celebCheck: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: colors.BACKGROUND,
+    backgroundColor: colors.ACCENT,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 8,
   },
