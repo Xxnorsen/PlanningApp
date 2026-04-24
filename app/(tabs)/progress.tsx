@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
@@ -18,6 +18,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
+import { useTheme } from '@/context/theme-context';
 import { progressApi, type ProgressData } from '@/services/api/progress';
 import { tasksApi } from '@/services/api/tasks';
 import { categoriesApi } from '@/services/api/categories';
@@ -29,47 +30,45 @@ import { WeeklyBarChart, type ProgressTab } from '@/components/weekly-bar-chart'
 
 const { width } = Dimensions.get('window');
 
-interface TabButtonProps {
-  title: string;
-  isActive: boolean;
-  onPress: () => void;
-}
-
-const TabButton: React.FC<TabButtonProps> = ({ title, isActive, onPress }) => (
-  <TouchableOpacity
-    style={[styles.tabButton, isActive && styles.tabButtonActive]}
-    onPress={onPress}
-    activeOpacity={0.8}
-  >
-    <Text style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}>
-      {title}
-    </Text>
-  </TouchableOpacity>
-);
-
-interface AchievementCardProps {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-  color: string;
-}
-
-const AchievementCard: React.FC<AchievementCardProps> = ({ icon, title, description, color }) => (
-  <View style={styles.achievementCard}>
-    <View style={[styles.achievementIcon, { backgroundColor: color + '22' }]}>
-      <Ionicons name={icon} size={24} color={color} />
-    </View>
-    <View style={styles.achievementContent}>
-      <Text style={styles.achievementTitle}>{title}</Text>
-      <Text style={styles.achievementDescription}>{description}</Text>
-    </View>
-  </View>
-);
-
-
 export default function ProgressScreen() {
   const router = useRouter();
   const { user, sessionSticker, rotateSticker } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const TabButton = ({ title, isActive, onPress }: {
+    title: string;
+    isActive: boolean;
+    onPress: () => void;
+  }) => (
+    <TouchableOpacity
+      style={[styles.tabButton, isActive && styles.tabButtonActive]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Text style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}>
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const AchievementCard = ({ icon, title, description, color }: {
+    icon: keyof typeof Ionicons.glyphMap;
+    title: string;
+    description: string;
+    color: string;
+  }) => (
+    <View style={styles.achievementCard}>
+      <View style={[styles.achievementIcon, { backgroundColor: color + '22' }]}>
+        <Ionicons name={icon} size={24} color={color} />
+      </View>
+      <View style={styles.achievementContent}>
+        <Text style={styles.achievementTitle}>{title}</Text>
+        <Text style={styles.achievementDescription}>{description}</Text>
+      </View>
+    </View>
+  );
+
   const [selectedTab, setSelectedTab] = useState<ProgressTab>('Weekly');
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -199,7 +198,7 @@ export default function ProgressScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => loadProgress(true)}
-            tintColor={COLORS.LIME}
+            tintColor={colors.LIME}
           />
         }
       >
@@ -225,14 +224,14 @@ export default function ProgressScreen() {
                 activeOpacity={0.85}
                 onPress={() => router.push('/categories')}
               >
-                <Ionicons name="grid-outline" size={18} color={COLORS.DARK_TEXT} />
+                <Ionicons name="grid-outline" size={18} color={colors.DARK_TEXT} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.bellBtn}
                 activeOpacity={0.85}
                 onPress={() => router.push('/(tabs)/planner')}
               >
-                <Ionicons name="arrow-forward" size={18} color={COLORS.DARK_TEXT} />
+                <Ionicons name="arrow-forward" size={18} color={colors.DARK_TEXT} />
               </TouchableOpacity>
             </View>
           </View>
@@ -255,7 +254,7 @@ export default function ProgressScreen() {
               >
                 <Text style={styles.viewTasksText}>View Tasks</Text>
                 <View style={styles.arrowCircle}>
-                  <Ionicons name="arrow-forward" size={14} color={COLORS.DARK_TEXT} />
+                  <Ionicons name="arrow-forward" size={14} color={colors.DARK_TEXT} />
                 </View>
               </TouchableOpacity>
             </View>
@@ -323,7 +322,7 @@ export default function ProgressScreen() {
               <Ionicons
                 name="trophy-outline"
                 size={48}
-                color={COLORS.INPUT_BORDER}
+                color={colors.INPUT_BORDER}
               />
               <Text style={styles.emptyAchievementsText}>
                 Your trophy shelf is looking a bit lonely. Let&apos;s give the cat something to celebrate!
@@ -339,16 +338,18 @@ export default function ProgressScreen() {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
-  scroll: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
+  scroll: { flex: 1, backgroundColor: colors.BACKGROUND },
   scrollContent: { flexGrow: 1 },
 
   loaderWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: colors.BACKGROUND,
   },
 
   hero: {
@@ -360,19 +361,19 @@ const styles = StyleSheet.create({
   circleLarge: {
     position: 'absolute',
     width: 140, height: 140, borderRadius: 70,
-    backgroundColor: COLORS.CIRCLE_LIGHT,
+    backgroundColor: colors.CIRCLE_LIGHT,
     top: -30, left: -40, opacity: 0.6,
   },
   circleMedium: {
     position: 'absolute',
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.CIRCLE_LIGHTER,
+    backgroundColor: colors.CIRCLE_LIGHTER,
     top: 20, right: -20, opacity: 0.6,
   },
   circleDot: {
     position: 'absolute',
     width: 14, height: 14, borderRadius: 7,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     top: 40, right: width * 0.3,
   },
 
@@ -392,24 +393,24 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     fontSize: 18,
   },
   helloText: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
   },
   userName: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     letterSpacing: 1,
     maxWidth: 180,
   },
   bellBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     alignItems: 'center', justifyContent: 'center',
   },
   headerActions: {
@@ -432,19 +433,19 @@ const styles = StyleSheet.create({
   todayLeft: { flex: 1 },
   todaySubtitle: {
     fontFamily: FontFamily.REGULAR,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
     fontSize: 13,
   },
   todayTitle: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     fontSize: 22,
     marginTop: 2,
     marginBottom: 16,
     letterSpacing: 0.3,
   },
   viewTasksBtn: {
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     borderRadius: 30,
     paddingLeft: 18, paddingRight: 6, paddingVertical: 6,
     alignSelf: 'flex-start',
@@ -452,7 +453,7 @@ const styles = StyleSheet.create({
   },
   viewTasksText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     fontSize: 13,
   },
   arrowCircle: {
@@ -463,7 +464,7 @@ const styles = StyleSheet.create({
 
   card: {
     flexGrow: 1,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -28,
@@ -474,7 +475,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BORDER,
     alignSelf: 'center', marginBottom: 20,
   },
   sessionSticker: {
@@ -489,12 +490,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
 
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 12,
     padding: 4,
     marginBottom: 20,
@@ -507,21 +508,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabButtonActive: {
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
   },
   tabButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     fontFamily: FontFamily.BOLD,
   },
   tabButtonTextActive: {
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
   sectionSubtitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     marginBottom: 16,
     fontFamily: FontFamily.BOLD,
   },
@@ -535,10 +536,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
     padding: 16,
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   achievementIcon: {
     width: 50,
@@ -553,13 +554,13 @@ const styles = StyleSheet.create({
   achievementTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     marginBottom: 4,
     fontFamily: FontFamily.BOLD,
   },
   achievementDescription: {
     fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     fontFamily: FontFamily.REGULAR,
   },
 
@@ -570,7 +571,7 @@ const styles = StyleSheet.create({
   },
   emptyAchievementsText: {
     fontSize: 16,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     fontFamily: FontFamily.REGULAR,
     textAlign: 'center',
     lineHeight: 24,

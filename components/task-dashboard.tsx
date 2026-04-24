@@ -22,6 +22,7 @@ import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
+import { useTheme } from '@/context/theme-context';
 import { progressApi, type ProgressData } from '@/services/api/progress';
 import { showApiErrorAlert } from '@/services/api/errors';
 import type { Task, TaskPriority } from '@/types/task';
@@ -37,6 +38,8 @@ const priorityBadge: Record<TaskPriority, { bg: string; color: string; icon: Ion
 };
 
 const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const size = 80;
   const strokeWidth = 7;
   const radius = (size - strokeWidth) / 2;
@@ -53,7 +56,7 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
         />
         <Circle
           cx={size / 2} cy={size / 2} r={radius}
-          stroke={COLORS.LIME} strokeWidth={strokeWidth} fill="none"
+          stroke={colors.LIME} strokeWidth={strokeWidth} fill="none"
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={offset}
           strokeLinecap="round"
@@ -68,6 +71,8 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
 const CONFETTI_COLORS = ['#C8FF3E', '#FF4757', '#FFA502', '#2ED573', '#FF9BCC', '#1E90FF', '#6C5CE7'];
 
 const CelebrationOverlay: React.FC<{ visible: boolean; onDone: () => void }> = ({ visible, onDone }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const scale = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const particles = useRef(
@@ -148,9 +153,11 @@ const InProgressCard: React.FC<InProgressCardProps> = ({
   onPress,
   onToggleDone,
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const p = priorityBadge[task.priority];
   return (
-    <View style={[styles.inProgressCard, { backgroundColor: COLORS.INPUT_BG }]}>
+    <View style={[styles.inProgressCard, { backgroundColor: colors.INPUT_BG }]}>
       <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={{ gap: 10 }}>
         <View style={styles.inProgressCardHeader}>
           <Text style={styles.inProgressCategory} numberOfLines={1}>
@@ -171,7 +178,7 @@ const InProgressCard: React.FC<InProgressCardProps> = ({
         activeOpacity={0.85}
         hitSlop={6}
       >
-        <Ionicons name="checkmark" size={16} color={COLORS.DARK_TEXT} />
+        <Ionicons name="checkmark" size={16} color={colors.DARK_TEXT} />
         <Text style={styles.doneBtnText}>Mark done</Text>
       </TouchableOpacity>
     </View>
@@ -188,6 +195,8 @@ interface CategoryRowProps {
 }
 
 const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, icon, taskCount, delay, onPress }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const translateY = useRef(new Animated.Value(30)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -210,7 +219,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, icon, taskCount,
             {taskCount} {taskCount === 1 ? 'Event' : 'Events'}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={COLORS.MUTED_ON_CARD} />
+        <Ionicons name="chevron-forward" size={20} color={colors.MUTED_ON_CARD} />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -220,6 +229,8 @@ const TaskDashboard: React.FC = () => {
   const router = useRouter();
   const { user, logout, sessionSticker, rotateSticker } = useAuth();
   const { tasks, fetchAll, toggleComplete } = useTasks();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const stickerSources = [
     require('@/assets/stickers/cat1.png'),
@@ -344,7 +355,7 @@ const TaskDashboard: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => loadAll(true)}
-            tintColor={COLORS.LIME}
+            tintColor={colors.LIME}
           />
         }
       >
@@ -371,14 +382,14 @@ const TaskDashboard: React.FC = () => {
                 activeOpacity={0.85}
                 onPress={() => router.push('/categories')}
               >
-                <Ionicons name="grid-outline" size={18} color={COLORS.DARK_TEXT} />
+                <Ionicons name="grid-outline" size={18} color={colors.DARK_TEXT} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.bellBtn}
                 activeOpacity={0.85}
                 onPress={handleLogout}
               >
-                <Ionicons name="log-out-outline" size={18} color={COLORS.DARK_TEXT} />
+                <Ionicons name="log-out-outline" size={18} color={colors.DARK_TEXT} />
               </TouchableOpacity>
             </View>
           </View>
@@ -405,7 +416,7 @@ const TaskDashboard: React.FC = () => {
               >
                 <Text style={styles.viewTasksText}>View Events</Text>
                 <View style={styles.arrowCircle}>
-                  <Ionicons name="arrow-forward" size={14} color={COLORS.DARK_TEXT} />
+                  <Ionicons name="arrow-forward" size={14} color={colors.DARK_TEXT} />
                 </View>
               </TouchableOpacity>
             </View>
@@ -430,7 +441,7 @@ const TaskDashboard: React.FC = () => {
               <Ionicons
                 name="checkmark-done-circle-outline"
                 size={32}
-                color={COLORS.INPUT_BORDER}
+                color={colors.INPUT_BORDER}
               />
               <Text style={styles.emptyInlineText}>Nothing in progress.</Text>
               <TouchableOpacity
@@ -438,7 +449,7 @@ const TaskDashboard: React.FC = () => {
                 onPress={() => router.push('/(tabs)/add-task')}
                 activeOpacity={0.85}
               >
-                <Ionicons name="add" size={16} color={COLORS.DARK_TEXT} />
+                <Ionicons name="add" size={16} color={colors.DARK_TEXT} />
                 <Text style={styles.emptyInlineBtnText}>Add event</Text>
               </TouchableOpacity>
             </View>
@@ -469,7 +480,7 @@ const TaskDashboard: React.FC = () => {
 
           {categories.length === 0 ? (
             <View style={styles.emptyInline}>
-              <Ionicons name="grid-outline" size={32} color={COLORS.INPUT_BORDER} />
+              <Ionicons name="grid-outline" size={32} color={colors.INPUT_BORDER} />
               <Text style={styles.emptyInlineText}>No categories yet.</Text>
             </View>
           ) : (
@@ -501,7 +512,7 @@ const TaskDashboard: React.FC = () => {
                   activeOpacity={0.7}
                   style={{ marginLeft: 'auto' }}
                 >
-                  <Text style={{ fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND }}>
+                  <Text style={{ fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.BACKGROUND }}>
                     View all
                   </Text>
                 </TouchableOpacity>
@@ -523,7 +534,7 @@ const TaskDashboard: React.FC = () => {
                       hitSlop={8}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="arrow-undo-outline" size={16} color={COLORS.MUTED_ON_CARD} />
+                      <Ionicons name="arrow-undo-outline" size={16} color={colors.MUTED_ON_CARD} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -537,16 +548,18 @@ const TaskDashboard: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
-  scroll: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
+  scroll: { flex: 1, backgroundColor: colors.BACKGROUND },
   scrollContent: { flexGrow: 1 },
 
   loaderWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: colors.BACKGROUND,
   },
 
   hero: {
@@ -560,7 +573,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: COLORS.CIRCLE_LIGHT,
+    backgroundColor: colors.CIRCLE_LIGHT,
     top: -30,
     left: -40,
     opacity: 0.6,
@@ -570,7 +583,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.CIRCLE_LIGHTER,
+    backgroundColor: colors.CIRCLE_LIGHTER,
     top: 20,
     right: -20,
     opacity: 0.6,
@@ -580,7 +593,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     top: 40,
     right: width * 0.3,
   },
@@ -605,18 +618,18 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     fontSize: 18,
   },
   helloText: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
   },
   userName: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     letterSpacing: 1,
     maxWidth: 180,
   },
@@ -624,7 +637,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -648,19 +661,19 @@ const styles = StyleSheet.create({
   todayLeft: { flex: 1 },
   todaySubtitle: {
     fontFamily: FontFamily.REGULAR,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
     fontSize: 13,
   },
   todayTitle: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     fontSize: 22,
     marginTop: 2,
     marginBottom: 16,
     letterSpacing: 0.3,
   },
   viewTasksBtn: {
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     borderRadius: 30,
     paddingLeft: 18,
     paddingRight: 6,
@@ -672,7 +685,7 @@ const styles = StyleSheet.create({
   },
   viewTasksText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     fontSize: 13,
   },
   arrowCircle: {
@@ -685,13 +698,13 @@ const styles = StyleSheet.create({
   },
   progressPct: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     fontSize: 18,
   },
 
   card: {
     flexGrow: 1,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -28,
@@ -704,7 +717,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BORDER,
     alignSelf: 'center',
     marginBottom: 20,
   },
@@ -727,17 +740,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
   sectionBadge: {
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
   sectionBadgeText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.BACKGROUND,
+    color: colors.BACKGROUND,
     fontSize: 12,
   },
 
@@ -748,7 +761,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   inProgressCardHeader: {
     flexDirection: 'row',
@@ -758,7 +771,7 @@ const styles = StyleSheet.create({
   inProgressCategory: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 11,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     flex: 1,
     marginRight: 6,
   },
@@ -772,7 +785,7 @@ const styles = StyleSheet.create({
   inProgressTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 14,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     lineHeight: 20,
   },
   doneBtn: {
@@ -781,26 +794,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     borderRadius: 12,
     paddingVertical: 8,
   },
   doneBtnText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 13,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
 
   taskGroupsList: { gap: 10 },
   taskGroupRow: {
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 18,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   taskGroupIcon: {
     width: 46,
@@ -813,12 +826,12 @@ taskGroupInfo: { flex: 1 },
   taskGroupName: {
     fontFamily: FontFamily.BOLD,
     fontSize: 15,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
   taskGroupCount: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginTop: 2,
   },
 
@@ -831,14 +844,14 @@ taskGroupInfo: { flex: 1 },
   emptyInlineText: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
   },
   emptyInlineBtn: {
     marginTop: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -846,14 +859,14 @@ taskGroupInfo: { flex: 1 },
   emptyInlineBtnText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 13,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
 
   doneList: { gap: 8, marginBottom: 8 },
   doneRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORS.INPUT_BG, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BG, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.INPUT_BORDER,
   },
   doneCheck: {
     width: 28, height: 28, borderRadius: 14,
@@ -861,10 +874,10 @@ taskGroupInfo: { flex: 1 },
   },
   doneInfo: { flex: 1 },
   doneTitle: {
-    fontFamily: FontFamily.BOLD, fontSize: 14, color: COLORS.MUTED_ON_CARD,
+    fontFamily: FontFamily.BOLD, fontSize: 14, color: colors.MUTED_ON_CARD,
     textDecorationLine: 'line-through',
   },
-  doneCat: { fontFamily: FontFamily.REGULAR, fontSize: 11, color: COLORS.MUTED_ON_CARD, marginTop: 2 },
+  doneCat: { fontFamily: FontFamily.REGULAR, fontSize: 11, color: colors.MUTED_ON_CARD, marginTop: 2 },
 
   celebOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
@@ -880,12 +893,12 @@ taskGroupInfo: { flex: 1 },
   },
   celebCheck: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: colors.BACKGROUND,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 8,
   },
-  celebTitle: { fontFamily: FontFamily.BOLD, fontSize: 22, color: COLORS.DARK_TEXT },
-  celebSub: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD },
+  celebTitle: { fontFamily: FontFamily.BOLD, fontSize: 22, color: colors.DARK_TEXT },
+  celebSub: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: colors.MUTED_ON_CARD },
 });
 
 export default TaskDashboard;

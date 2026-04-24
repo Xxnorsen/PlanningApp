@@ -22,6 +22,7 @@ import { tasksApi } from '@/services/api/tasks';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 import type { Task } from '@/types/task';
 import { useCategories } from '@/context/category-context';
+import { useTheme } from '@/context/theme-context';
 import { TaskCard, taskStatusLabel } from '@/components/task-card';
 import { DeleteTaskModal } from '@/components/delete-task-modal';
 
@@ -65,6 +66,8 @@ const buildDayStrip = (anchor: Date) => {
 export default function PlannerScreen() {
   const router = useRouter();
   const { categories, fetchAll: fetchCategories } = useCategories();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const [selectedDate, setSelectedDate] = useState<Date>(today);
@@ -182,7 +185,7 @@ export default function PlannerScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.BACKGROUND} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.BACKGROUND} />
 
       {/* ── Purple hero ── */}
       <View style={styles.hero}>
@@ -195,11 +198,11 @@ export default function PlannerScreen() {
             style={styles.headerBtn}
             onPress={() => { setCalPickedDate(null); setCalendarVisible(true); }}
           >
-            <Ionicons name="calendar-outline" size={18} color={COLORS.DARK_TEXT} />
+            <Ionicons name="calendar-outline" size={18} color={colors.DARK_TEXT} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{headerLabel}</Text>
           <TouchableOpacity style={styles.headerBtn} onPress={() => load(selectedDate, activeFilter, true)}>
-            <Ionicons name="refresh-outline" size={18} color={COLORS.DARK_TEXT} />
+            <Ionicons name="refresh-outline" size={18} color={colors.DARK_TEXT} />
           </TouchableOpacity>
         </View>
 
@@ -269,7 +272,7 @@ export default function PlannerScreen() {
           </View>
         ) : error ? (
           <View style={styles.emptyState}>
-            <Ionicons name="cloud-offline-outline" size={40} color={COLORS.INPUT_BORDER} />
+            <Ionicons name="cloud-offline-outline" size={40} color={colors.INPUT_BORDER} />
             <Text style={styles.emptyText}>{error}</Text>
             <TouchableOpacity
               style={styles.retryBtn}
@@ -287,7 +290,7 @@ export default function PlannerScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={() => load(selectedDate, activeFilter, true)}
-                tintColor={COLORS.BACKGROUND}
+                tintColor={colors.BACKGROUND}
               />
             }
           >
@@ -296,7 +299,7 @@ export default function PlannerScreen() {
                 <Ionicons
                   name="checkmark-done-circle-outline"
                   size={48}
-                  color={COLORS.INPUT_BORDER}
+                  color={colors.INPUT_BORDER}
                 />
                 <Text style={styles.emptyText}>No events for this day.</Text>
                 <TouchableOpacity
@@ -339,7 +342,7 @@ export default function PlannerScreen() {
             <View style={styles.calHeader}>
               <Text style={styles.calTitle}>Pick a Date</Text>
               <TouchableOpacity onPress={() => setCalendarVisible(false)} style={styles.calClose}>
-                <Ionicons name="close" size={20} color={COLORS.DARK_TEXT} />
+                <Ionicons name="close" size={20} color={colors.DARK_TEXT} />
               </TouchableOpacity>
             </View>
 
@@ -348,29 +351,29 @@ export default function PlannerScreen() {
               onDayPress={(day: { dateString: string }) => setCalPickedDate(day.dateString)}
               markedDates={{
                 ...(calPickedDate
-                  ? { [calPickedDate]: { selected: true, selectedColor: COLORS.BACKGROUND } }
-                  : { [toIsoDate(selectedDate)]: { selected: true, selectedColor: COLORS.BACKGROUND } }),
+                  ? { [calPickedDate]: { selected: true, selectedColor: colors.BACKGROUND } }
+                  : { [toIsoDate(selectedDate)]: { selected: true, selectedColor: colors.BACKGROUND } }),
                 [toIsoDate(today)]: (calPickedDate === toIsoDate(today) || (!calPickedDate && isSameDay(selectedDate, today)))
-                  ? { selected: true, selectedColor: COLORS.BACKGROUND }
-                  : { marked: true, dotColor: COLORS.LIME },
+                  ? { selected: true, selectedColor: colors.BACKGROUND }
+                  : { marked: true, dotColor: colors.LIME },
               }}
               theme={{
-                backgroundColor: COLORS.CARD,
-                calendarBackground: COLORS.CARD,
-                todayTextColor: COLORS.BACKGROUND,
-                selectedDayBackgroundColor: COLORS.BACKGROUND,
+                backgroundColor: colors.CARD,
+                calendarBackground: colors.CARD,
+                todayTextColor: colors.BACKGROUND,
+                selectedDayBackgroundColor: colors.BACKGROUND,
                 selectedDayTextColor: '#fff',
-                dayTextColor: COLORS.DARK_TEXT,
-                textDisabledColor: COLORS.INPUT_BORDER,
-                monthTextColor: COLORS.DARK_TEXT,
-                arrowColor: COLORS.BACKGROUND,
+                dayTextColor: colors.DARK_TEXT,
+                textDisabledColor: colors.INPUT_BORDER,
+                monthTextColor: colors.DARK_TEXT,
+                arrowColor: colors.BACKGROUND,
                 textDayFontFamily: FontFamily.REGULAR,
                 textMonthFontFamily: FontFamily.BOLD,
                 textDayHeaderFontFamily: FontFamily.BOLD,
                 textDayFontSize: 15,
                 textMonthFontSize: 17,
                 textDayHeaderFontSize: 12,
-                dotColor: COLORS.LIME,
+                dotColor: colors.LIME,
                 ['stylesheet.calendar.header' as never]: {
                   week: { marginTop: 8, flexDirection: 'row', justifyContent: 'space-around' },
                 },
@@ -389,7 +392,7 @@ export default function PlannerScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <Ionicons name="today-outline" size={16} color={COLORS.BACKGROUND} />
+                <Ionicons name="today-outline" size={16} color={colors.BACKGROUND} />
                 <Text style={styles.calSecondaryBtnText}>Today</Text>
               </TouchableOpacity>
 
@@ -404,7 +407,7 @@ export default function PlannerScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <Ionicons name="list-outline" size={16} color={COLORS.DARK_TEXT} />
+                <Ionicons name="list-outline" size={16} color={colors.DARK_TEXT} />
                 <Text style={styles.calViewBtnText}>View Day</Text>
               </TouchableOpacity>
 
@@ -421,7 +424,7 @@ export default function PlannerScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <Ionicons name="add" size={18} color={COLORS.DARK_TEXT} />
+                <Ionicons name="add" size={18} color={colors.DARK_TEXT} />
                 <Text style={styles.calAddBtnText}>Add Event</Text>
               </TouchableOpacity>
             </View>
@@ -435,11 +438,13 @@ export default function PlannerScreen() {
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
 
   hero: {
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: colors.BACKGROUND,
     paddingHorizontal: 20,
     paddingBottom: 40,
     position: 'relative',
@@ -447,19 +452,19 @@ const styles = StyleSheet.create({
   circleLarge: {
     position: 'absolute',
     width: 140, height: 140, borderRadius: 70,
-    backgroundColor: COLORS.CIRCLE_LIGHT,
+    backgroundColor: colors.CIRCLE_LIGHT,
     top: -30, left: -40, opacity: 0.6,
   },
   circleMedium: {
     position: 'absolute',
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.CIRCLE_LIGHTER,
+    backgroundColor: colors.CIRCLE_LIGHTER,
     top: 10, right: -20, opacity: 0.6,
   },
   circleDot: {
     position: 'absolute',
     width: 14, height: 14, borderRadius: 7,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     top: 30, right: '40%',
   },
 
@@ -472,19 +477,19 @@ const styles = StyleSheet.create({
   },
   headerBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     letterSpacing: 0.3,
   },
   heroDate: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 13,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
     marginTop: 8,
     marginLeft: 2,
     zIndex: 1,
@@ -507,34 +512,34 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.18)',
   },
   dayItemToday: {
-    borderColor: COLORS.LIME,
+    borderColor: colors.LIME,
     borderWidth: 1.5,
   },
   dayItemSelected: {
-    backgroundColor: COLORS.LIME,
-    borderColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
+    borderColor: colors.LIME,
   },
   dayMonth: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 10,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
   },
   dayNumber: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     marginVertical: 2,
   },
   dayName: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 10,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
   },
-  dayTextSelected: { color: COLORS.DARK_TEXT },
+  dayTextSelected: { color: colors.DARK_TEXT },
 
   card2: {
     flex: 1,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -28,
@@ -542,7 +547,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BORDER,
     alignSelf: 'center', marginBottom: 16,
   },
 
@@ -556,23 +561,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
     marginRight: 8,
     height: 38,
     justifyContent: 'center',
   },
   filterChipActive: {
-    backgroundColor: COLORS.BACKGROUND,
-    borderColor: COLORS.BACKGROUND,
+    backgroundColor: colors.BACKGROUND,
+    borderColor: colors.BACKGROUND,
   },
   filterText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 13,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
   },
-  filterTextActive: { color: COLORS.WHITE_TEXT },
+  filterTextActive: { color: colors.WHITE_TEXT },
 
   taskList: {
     paddingHorizontal: 20,
@@ -585,55 +590,55 @@ const styles = StyleSheet.create({
 
   calOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
   calSheet: {
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 32, borderTopRightRadius: 32,
     paddingBottom: 36, overflow: 'hidden',
   },
   calHandle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER, alignSelf: 'center', marginTop: 12, marginBottom: 4,
+    backgroundColor: colors.INPUT_BORDER, alignSelf: 'center', marginTop: 12, marginBottom: 4,
   },
   calHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 12,
   },
-  calTitle: { fontFamily: FontFamily.BOLD, fontSize: 18, color: COLORS.DARK_TEXT },
+  calTitle: { fontFamily: FontFamily.BOLD, fontSize: 18, color: colors.DARK_TEXT },
   calClose: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: COLORS.INPUT_BG, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.INPUT_BG, alignItems: 'center', justifyContent: 'center',
   },
   calActions: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginTop: 16 },
 
   calSecondaryBtn: {
     flex: 1, height: 48, borderRadius: 24, borderWidth: 1.5,
-    borderColor: COLORS.BACKGROUND, flexDirection: 'row',
+    borderColor: colors.BACKGROUND, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  calSecondaryBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND },
+  calSecondaryBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.BACKGROUND },
 
   calViewBtn: {
     flex: 1.2, height: 48, borderRadius: 24,
-    backgroundColor: COLORS.INPUT_BG, flexDirection: 'row',
+    backgroundColor: colors.INPUT_BG, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  calViewBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.DARK_TEXT },
+  calViewBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.DARK_TEXT },
 
   calAddBtn: {
     flex: 1.5, height: 48, borderRadius: 24,
-    backgroundColor: COLORS.LIME, flexDirection: 'row',
+    backgroundColor: colors.LIME, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  calAddBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.DARK_TEXT },
+  calAddBtnText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.DARK_TEXT },
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12, paddingHorizontal: 20 },
   emptyText: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 15,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     textAlign: 'center',
   },
   retryBtn: {
     marginTop: 6,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     borderRadius: 24,
     paddingHorizontal: 24,
     paddingVertical: 10,
@@ -641,6 +646,6 @@ const styles = StyleSheet.create({
   retryText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 14,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -23,6 +23,7 @@ import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
+import { useTheme } from '@/context/theme-context';
 import { tasksApi } from '@/services/api/tasks';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 import { PriorityPicker } from '@/components/priority-picker';
@@ -38,6 +39,8 @@ export default function EditTaskScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { updateTask, deleteTask, toggleComplete, isLoading } = useTasks();
   const { fetchAll: fetchCategories } = useCategories();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [loading, setLoading] = useState(true);
   const [task, setTask] = useState<Task | null>(null);
@@ -185,7 +188,7 @@ export default function EditTaskScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.loaderWrap}>
-          <Ionicons name="alert-circle-outline" size={42} color={COLORS.LIME} />
+          <Ionicons name="alert-circle-outline" size={42} color={colors.LIME} />
           <Text style={styles.errorCenter}>{error || 'Task not found.'}</Text>
           <TouchableOpacity style={styles.primaryButton} onPress={() => router.back()}>
             <Text style={styles.primaryButtonText}>Go back</Text>
@@ -211,7 +214,7 @@ export default function EditTaskScreen() {
 
           <View style={styles.header}>
             <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={20} color={COLORS.DARK_TEXT} />
+              <Ionicons name="chevron-back" size={20} color={colors.DARK_TEXT} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Edit Task</Text>
             <TouchableOpacity
@@ -224,7 +227,7 @@ export default function EditTaskScreen() {
               <Ionicons
                 name={isCompleted ? 'checkmark-done' : 'checkmark-outline'}
                 size={18}
-                color={COLORS.DARK_TEXT}
+                color={colors.DARK_TEXT}
               />
             </TouchableOpacity>
           </View>
@@ -261,7 +264,7 @@ export default function EditTaskScreen() {
                 value={title}
                 onChangeText={setTitle}
                 placeholder="Task title"
-                placeholderTextColor={COLORS.MUTED_ON_CARD}
+                placeholderTextColor={colors.MUTED_ON_CARD}
               />
             </View>
 
@@ -273,7 +276,7 @@ export default function EditTaskScreen() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Add notes (optional)"
-                placeholderTextColor={COLORS.MUTED_ON_CARD}
+                placeholderTextColor={colors.MUTED_ON_CARD}
                 multiline
                 scrollEnabled={false}
               />
@@ -295,8 +298,8 @@ export default function EditTaskScreen() {
               onPress={() => setShowPicker(true)}
             >
               <View style={styles.fieldRow}>
-                <View style={[styles.iconContainer, { backgroundColor: COLORS.INPUT_BG }]}>
-                  <Ionicons name="calendar-outline" size={18} color={COLORS.BACKGROUND} />
+                <View style={[styles.iconContainer, { backgroundColor: colors.INPUT_BG }]}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.BACKGROUND} />
                 </View>
                 <View style={styles.textContainer}>
                   <Text style={styles.label}>Due Date</Text>
@@ -306,10 +309,10 @@ export default function EditTaskScreen() {
                 </View>
                 {dueDate ? (
                   <TouchableOpacity onPress={() => setDueDate(null)} hitSlop={8}>
-                    <Ionicons name="close-circle" size={18} color={COLORS.MUTED_ON_CARD} />
+                    <Ionicons name="close-circle" size={18} color={colors.MUTED_ON_CARD} />
                   </TouchableOpacity>
                 ) : (
-                  <Ionicons name="chevron-down" size={18} color={COLORS.MUTED_ON_CARD} />
+                  <Ionicons name="chevron-down" size={18} color={colors.MUTED_ON_CARD} />
                 )}
               </View>
             </TouchableOpacity>
@@ -321,8 +324,8 @@ export default function EditTaskScreen() {
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 onChange={onDateChange}
                 themeVariant="light"
-                textColor={COLORS.DARK_TEXT}
-                accentColor={COLORS.BACKGROUND}
+                textColor={colors.DARK_TEXT}
+                accentColor={colors.BACKGROUND}
                 style={Platform.OS === 'ios' ? styles.iosPicker : null}
               />
             )}
@@ -395,8 +398,10 @@ export default function EditTaskScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
 
   loaderWrap: {
     flex: 1,
@@ -408,14 +413,14 @@ const styles = StyleSheet.create({
   errorCenter: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 15,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     textAlign: 'center',
     marginBottom: 12,
   },
 
   // Hero
   hero: {
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: colors.BACKGROUND,
     paddingHorizontal: 20,
     paddingBottom: 44,
     position: 'relative',
@@ -423,19 +428,19 @@ const styles = StyleSheet.create({
   circleLarge: {
     position: 'absolute',
     width: 140, height: 140, borderRadius: 70,
-    backgroundColor: COLORS.CIRCLE_LIGHT,
+    backgroundColor: colors.CIRCLE_LIGHT,
     top: -30, left: -40, opacity: 0.6,
   },
   circleMedium: {
     position: 'absolute',
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.CIRCLE_LIGHTER,
+    backgroundColor: colors.CIRCLE_LIGHTER,
     top: 20, right: -20, opacity: 0.6,
   },
   circleDot: {
     position: 'absolute',
     width: 14, height: 14, borderRadius: 7,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     top: 40, right: '35%',
   },
   header: {
@@ -447,26 +452,26 @@ const styles = StyleSheet.create({
   },
   headerBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     letterSpacing: 0.3,
   },
   heroSubtitle: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 13,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
     marginTop: 12,
     zIndex: 1,
   },
   heroTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 24,
-    color: COLORS.LIME,
+    color: colors.LIME,
     letterSpacing: 0.8,
     marginTop: 2,
     zIndex: 1,
@@ -474,7 +479,7 @@ const styles = StyleSheet.create({
 
   card2: {
     flex: 1,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -28,
@@ -482,7 +487,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BORDER,
     alignSelf: 'center', marginBottom: 16,
   },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
@@ -504,12 +509,12 @@ const styles = StyleSheet.create({
   },
 
   fieldCard: {
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   fieldRow: { flexDirection: 'row', alignItems: 'center' },
   iconContainer: {
@@ -521,43 +526,43 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginBottom: 2,
   },
   labelSolo: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginBottom: 4,
   },
   inputSolo: {
     fontFamily: FontFamily.BOLD,
     fontSize: 15,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     paddingVertical: 0,
   },
   valueText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 15,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
   multilineInput: {
     lineHeight: 22,
     fontFamily: FontFamily.REGULAR,
     fontSize: 14,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     minHeight: 70,
   },
-  descriptionCard: { backgroundColor: '#FFFCF5' },
-  iosPicker: { backgroundColor: COLORS.CARD, borderRadius: 16, marginBottom: 12 },
+  descriptionCard: { backgroundColor: colors.CARD },
+  iosPicker: { backgroundColor: colors.CARD, borderRadius: 16, marginBottom: 12 },
 
   footer: {
     flexDirection: 'row',
     padding: 20,
     gap: 12,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopWidth: 1,
-    borderTopColor: COLORS.INPUT_BORDER,
+    borderTopColor: colors.INPUT_BORDER,
   },
   button: {
     flex: 1,
@@ -567,8 +572,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButton: {
-    backgroundColor: COLORS.LIME,
-    shadowColor: COLORS.BACKGROUND,
+    backgroundColor: colors.LIME,
+    shadowColor: colors.BACKGROUND,
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -576,14 +581,14 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     fontSize: 15,
     letterSpacing: 0.3,
   },
   deleteButton: {
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   deleteButtonText: {
     fontFamily: FontFamily.BOLD,
@@ -596,13 +601,13 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 28,
     paddingHorizontal: 28,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     justifyContent: 'center',
     alignItems: 'center',
   },
   primaryButtonText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     fontSize: 15,
   },
 
@@ -615,7 +620,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   modalCard: {
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderRadius: 24,
     width: '100%',
     maxWidth: 360,
@@ -631,13 +636,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     marginBottom: 6,
   },
   modalMessage: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 20,
@@ -650,19 +655,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCancelBtn: {
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   modalDeleteBtn: { backgroundColor: '#FF4757' },
   modalCancelBtnText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     fontSize: 14,
   },
   modalDeleteBtnText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     fontSize: 14,
   },
 });

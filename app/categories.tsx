@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -10,6 +10,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useCategories } from '@/context/category-context';
+import { useTheme } from '@/context/theme-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import type { Category } from '@/types/category';
 
@@ -47,6 +48,8 @@ function CategoryRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.row}>
       <View style={[styles.rowIcon, { backgroundColor: category.color + '22' }]}>
@@ -57,7 +60,7 @@ function CategoryRow({
         <Text style={styles.rowCount}>{category.taskCount ?? 0} Events</Text>
       </View>
       <TouchableOpacity style={styles.actionBtn} onPress={onEdit} activeOpacity={0.7}>
-        <Ionicons name="pencil-outline" size={17} color={COLORS.MUTED_ON_CARD} />
+        <Ionicons name="pencil-outline" size={17} color={colors.MUTED_ON_CARD} />
       </TouchableOpacity>
       <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={onDelete} activeOpacity={0.7}>
         <Ionicons name="trash-outline" size={17} color="#FF4757" />
@@ -81,6 +84,8 @@ function FormModal({
   onClose: () => void;
   busy: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [error, setError] = useState('');
 
@@ -127,7 +132,7 @@ function FormModal({
             value={form.name}
             onChangeText={v => { set({ name: v }); setError(''); }}
             placeholder="e.g. Work, Fitness…"
-            placeholderTextColor={COLORS.MUTED_ON_CARD}
+            placeholderTextColor={colors.MUTED_ON_CARD}
             autoFocus
           />
 
@@ -154,7 +159,7 @@ function FormModal({
                 onPress={() => set({ icon: ic })}
                 activeOpacity={0.8}
               >
-                <Ionicons name={ic as any} size={20} color={form.icon === ic ? form.color : COLORS.MUTED_ON_CARD} />
+                <Ionicons name={ic as any} size={20} color={form.icon === ic ? form.color : colors.MUTED_ON_CARD} />
               </TouchableOpacity>
             ))}
           </View>
@@ -186,6 +191,8 @@ function DeleteModal({
   busy: boolean;
   error: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Modal visible={!!category} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.delOverlay}>
@@ -222,6 +229,8 @@ function DeleteModal({
 export default function CategoriesScreen() {
   const router = useRouter();
   const { categories, isLoading, fetchAll, createCategory, updateCategory, deleteCategory } = useCategories();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
@@ -277,11 +286,11 @@ export default function CategoriesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.WHITE_TEXT} />
+          <Ionicons name="arrow-back" size={22} color={colors.WHITE_TEXT} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Categories</Text>
         <TouchableOpacity style={styles.addBtn} onPress={openCreate} activeOpacity={0.8}>
-          <Ionicons name="add" size={22} color={COLORS.DARK_TEXT} />
+          <Ionicons name="add" size={22} color={colors.DARK_TEXT} />
         </TouchableOpacity>
       </View>
 
@@ -293,12 +302,12 @@ export default function CategoriesScreen() {
           {categories.length === 0 ? (
             <View style={styles.empty}>
               <View style={styles.emptyIcon}>
-                <Ionicons name="grid-outline" size={38} color={COLORS.MUTED_ON_CARD} />
+                <Ionicons name="grid-outline" size={38} color={colors.MUTED_ON_CARD} />
               </View>
               <Text style={styles.emptyTitle}>No categories yet</Text>
               <Text style={styles.emptySub}>Create one to organise your events</Text>
               <TouchableOpacity style={styles.emptyBtn} onPress={openCreate} activeOpacity={0.85}>
-                <Ionicons name="add" size={16} color={COLORS.DARK_TEXT} />
+                <Ionicons name="add" size={16} color={colors.DARK_TEXT} />
                 <Text style={styles.emptyBtnText}>Create Category</Text>
               </TouchableOpacity>
             </View>
@@ -337,70 +346,72 @@ export default function CategoriesScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
   },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: COLORS.WHITE_TEXT },
-  addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.LIME, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.WHITE_TEXT },
+  addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center' },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  scroll: { flex: 1, backgroundColor: COLORS.INPUT_BG, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  scroll: { flex: 1, backgroundColor: colors.INPUT_BG, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   list: { padding: 20, gap: 12 },
 
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.CARD, borderRadius: 16, padding: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.CARD, borderRadius: 16, padding: 14 },
   rowIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   rowInfo: { flex: 1 },
-  rowName: { fontFamily: FontFamily.BOLD, fontSize: 15, color: COLORS.DARK_TEXT },
-  rowCount: { fontFamily: FontFamily.REGULAR, fontSize: 12, color: COLORS.MUTED_ON_CARD, marginTop: 2 },
-  actionBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.INPUT_BG, alignItems: 'center', justifyContent: 'center' },
+  rowName: { fontFamily: FontFamily.BOLD, fontSize: 15, color: colors.DARK_TEXT },
+  rowCount: { fontFamily: FontFamily.REGULAR, fontSize: 12, color: colors.MUTED_ON_CARD, marginTop: 2 },
+  actionBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.INPUT_BG, alignItems: 'center', justifyContent: 'center' },
   actionBtnDanger: { backgroundColor: '#FFF0F1' },
 
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
-  emptyIcon: { width: 80, height: 80, borderRadius: 24, backgroundColor: COLORS.CARD, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { fontFamily: FontFamily.BOLD, fontSize: 18, color: COLORS.DARK_TEXT },
-  emptySub: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD, textAlign: 'center' },
-  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.LIME, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginTop: 8 },
-  emptyBtnText: { fontFamily: FontFamily.BOLD, fontSize: 14, color: COLORS.DARK_TEXT },
+  emptyIcon: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.CARD, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { fontFamily: FontFamily.BOLD, fontSize: 18, color: colors.DARK_TEXT },
+  emptySub: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: colors.MUTED_ON_CARD, textAlign: 'center' },
+  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.LIME, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginTop: 8 },
+  emptyBtnText: { fontFamily: FontFamily.BOLD, fontSize: 14, color: colors.DARK_TEXT },
 
   // Shared modal pieces
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: { backgroundColor: COLORS.CARD, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.INPUT_BORDER, alignSelf: 'center', marginBottom: 20 },
-  sheetTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: COLORS.DARK_TEXT, marginBottom: 16 },
+  sheet: { backgroundColor: colors.CARD, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.INPUT_BORDER, alignSelf: 'center', marginBottom: 20 },
+  sheetTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.DARK_TEXT, marginBottom: 16 },
 
   preview: { width: 64, height: 64, borderRadius: 18, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
 
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FF4757', borderRadius: 12, padding: 12, marginBottom: 12 },
   errorText: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: '#fff', flex: 1 },
 
-  label: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND, marginBottom: 8 },
-  input: { backgroundColor: COLORS.INPUT_BG, borderRadius: 12, borderWidth: 1, borderColor: COLORS.INPUT_BORDER, paddingHorizontal: 14, paddingVertical: 12, fontFamily: FontFamily.REGULAR, fontSize: 15, color: COLORS.DARK_TEXT, marginBottom: 16 },
+  label: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.BACKGROUND, marginBottom: 8 },
+  input: { backgroundColor: colors.INPUT_BG, borderRadius: 12, borderWidth: 1, borderColor: colors.INPUT_BORDER, paddingHorizontal: 14, paddingVertical: 12, fontFamily: FontFamily.REGULAR, fontSize: 15, color: colors.DARK_TEXT, marginBottom: 16 },
   inputError: { borderColor: '#FF4757' },
 
   palette: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   swatch: { width: 32, height: 32, borderRadius: 16 },
-  swatchActive: { borderWidth: 3, borderColor: COLORS.DARK_TEXT },
+  swatchActive: { borderWidth: 3, borderColor: colors.DARK_TEXT },
 
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  iconBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.INPUT_BG, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
+  iconBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.INPUT_BG, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
 
-  saveBtn: { height: 52, borderRadius: 26, backgroundColor: COLORS.LIME, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  saveBtnText: { fontFamily: FontFamily.BOLD, fontSize: 16, color: COLORS.DARK_TEXT },
+  saveBtn: { height: 52, borderRadius: 26, backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  saveBtnText: { fontFamily: FontFamily.BOLD, fontSize: 16, color: colors.DARK_TEXT },
   cancelBtn: { alignItems: 'center', paddingVertical: 8 },
-  cancelBtnText: { fontFamily: FontFamily.REGULAR, fontSize: 15, color: COLORS.MUTED_ON_CARD },
+  cancelBtnText: { fontFamily: FontFamily.REGULAR, fontSize: 15, color: colors.MUTED_ON_CARD },
 
   // Delete modal
   delOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
-  delCard: { backgroundColor: COLORS.CARD, borderRadius: 24, padding: 24, width: '100%', alignItems: 'center' },
+  delCard: { backgroundColor: colors.CARD, borderRadius: 24, padding: 24, width: '100%', alignItems: 'center' },
   delIconWrap: { width: 60, height: 60, borderRadius: 18, backgroundColor: '#FFF0F1', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  delTitle: { fontFamily: FontFamily.BOLD, fontSize: 17, color: COLORS.DARK_TEXT, marginBottom: 6, textAlign: 'center' },
-  delBody: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD, textAlign: 'center', marginBottom: 20 },
+  delTitle: { fontFamily: FontFamily.BOLD, fontSize: 17, color: colors.DARK_TEXT, marginBottom: 6, textAlign: 'center' },
+  delBody: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: colors.MUTED_ON_CARD, textAlign: 'center', marginBottom: 20 },
   delBtn: { height: 48, borderRadius: 24, backgroundColor: '#FF4757', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: 4 },
   delBtnText: { fontFamily: FontFamily.BOLD, fontSize: 15, color: '#fff' },
 });
