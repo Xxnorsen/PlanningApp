@@ -496,6 +496,15 @@ const TaskDashboard: React.FC = () => {
                 <View style={[styles.sectionBadge, { backgroundColor: '#E8F9EE' }]}>
                   <Text style={[styles.sectionBadgeText, { color: '#2ED573' }]}>{doneTasks.length}</Text>
                 </View>
+                <TouchableOpacity
+                  onPress={() => router.push('/completed')}
+                  activeOpacity={0.7}
+                  style={{ marginLeft: 'auto' }}
+                >
+                  <Text style={{ fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND }}>
+                    View all
+                  </Text>
+                </TouchableOpacity>
               </View>
               <View style={styles.doneList}>
                 {doneTasks.map(task => (

@@ -1,137 +1,82 @@
 import { apiClient } from './client';
 import type { Task, CreateTaskPayload, UpdateTaskPayload } from '@/types/task';
+import { normalizeTaskRaw } from './task-utils';
 
-// ── Raw API shape (snake_case) ────────────────────────────────────────────────
-
-interface RawTask {
-  id: number | string;
-  title: string;
-  description?: string | null;
-  status?: string;
-  is_completed?: boolean;
-  priority: string;
-  category_id?: number | string | null;
-  due_date?: string | null;
-  completed_at?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-function normalizeTask(raw: RawTask): Task {
-  const isCompleted = raw.status === 'completed' || raw.is_completed === true;
-  return {
-    id: String(raw.id),
-    title: raw.title,
-    description: raw.description ?? undefined,
-    status: isCompleted ? 'completed' : 'pending',
-    priority: (raw.priority as Task['priority']) ?? 'medium',
-    categoryId: raw.category_id != null ? String(raw.category_id) : undefined,
-    dueDate: raw.due_date ?? undefined,
-    completedAt: raw.completed_at ?? undefined,
-    createdAt: raw.created_at,
-    updatedAt: raw.updated_at,
-  };
+function toYmd(input: string | undefined | null): string | null {
+  if (!input) return null;
+  // Accept "YYYY-MM-DD" or full ISO — strip the time portion.
+  return input.length >= 10 ? input.slice(0, 10) : input;
 }
 
 function toApiPayload(payload: CreateTaskPayload | UpdateTaskPayload) {
-  return {
+  const body: Record<string, unknown> = {
     title: (payload as CreateTaskPayload).title,
     description: payload.description ?? null,
     priority: payload.priority ?? 'medium',
     category_id: payload.categoryId ? Number(payload.categoryId) : null,
-    due_date: payload.dueDate ?? null,
+    due_date: toYmd(payload.dueDate),
   };
+  const status = (payload as UpdateTaskPayload).status;
+  if (status !== undefined) {
+    body.completed = status === 'completed';
+  }
+  return body;
 }
 
-
-
-// ── Tasks API ─────────────────────────────────────────────────────────────────
-
 export const tasksApi = {
-  /** GET /tasks/ — all tasks */
   getAll: async (): Promise<Task[]> => {
-    const { data } = await apiClient.get<RawTask[]>('/tasks/');
-    return data.map(normalizeTask);
+    const { data } = await apiClient.get<any[]>('/tasks/');
+    return data.map(normalizeTaskRaw);
   },
 
-  /** GET /tasks/active/ */
   getActive: async (): Promise<Task[]> => {
-    const { data } = await apiClient.get<RawTask[]>('/tasks/active/');
-    return data.map(normalizeTask);
+    const { data } = await apiClient.get<any[]>('/tasks/active/');
+    return data.map(normalizeTaskRaw);
   },
 
-  /** GET /tasks/completed/ */
   getCompleted: async (): Promise<Task[]> => {
-  const { data } = await apiClient.get<RawTask[]>('/tasks/completed/');
-  console.log('RAW /tasks/completed/ response:', JSON.stringify(data[0])); // log first task raw
-  
-  const fullTasks = await Promise.all(
-    data.map(async (t: RawTask) => {
-      try {
-        const { data: full } = await apiClient.get<RawTask>(`/tasks/${t.id}`);
-        console.log(`RAW /tasks/${t.id} response:`, JSON.stringify(full)); // log full task raw
-        return normalizeTask(full);
-      } catch {
-        return normalizeTask(t);
-      }
-    })
-  );
-  
-  return fullTasks;
-},
-  /** GET /tasks/today/ */
+    const { data } = await apiClient.get<any[]>('/tasks/completed/');
+    return data.map(normalizeTaskRaw);
+  },
+
   getToday: async (): Promise<Task[]> => {
-    const { data } = await apiClient.get<RawTask[]>('/tasks/today/');
-    return data.map(normalizeTask);
+    const { data } = await apiClient.get<any[]>('/tasks/today/');
+    return data.map(normalizeTaskRaw);
   },
 
-  /** GET /tasks/{id} */
   getById: async (id: string): Promise<Task> => {
-    const { data } = await apiClient.get<RawTask>(`/tasks/${id}`);
-    return normalizeTask(data);
+    const { data } = await apiClient.get(`/tasks/${id}`);
+    return normalizeTaskRaw(data);
   },
 
-  /** POST /tasks/ */
   create: async (payload: CreateTaskPayload): Promise<Task> => {
-    const { data } = await apiClient.post<RawTask>('/tasks/', toApiPayload(payload));
-    return normalizeTask(data);
+    const { data } = await apiClient.post('/tasks/', toApiPayload(payload));
+    return normalizeTaskRaw(data);
   },
 
-  /** PUT /tasks/{id} — partial update allowed */
   update: async (id: string, payload: UpdateTaskPayload): Promise<Task> => {
-    const { data } = await apiClient.put<RawTask>(`/tasks/${id}`, toApiPayload(payload));
-    return normalizeTask(data);
+    const { data } = await apiClient.put(`/tasks/${id}`, toApiPayload(payload));
+    return normalizeTaskRaw(data);
   },
 
-  /** DELETE /tasks/{id} */
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/tasks/${id}`);
   },
 
-  /** PATCH /tasks/{id}/complete */
-  complete: async (id: string): Promise<Task> => {
-  const { data } = await apiClient.patch<RawTask>(`/tasks/${id}/complete`);
-  console.log('=== /tasks/complete raw response ===', JSON.stringify(data));
-  return normalizeTask(data);
-},
-
-  /** PATCH /tasks/{id}/undo */
-  undo: async (id: string): Promise<Task> => {
-    const { data } = await apiClient.patch<RawTask>(`/tasks/${id}/undo`);
-    return normalizeTask(data);
+  /**
+   * Toggle completion by sending a full PUT with the `completed` flag.
+   * The dedicated PATCH /tasks/{id}/complete endpoint was unreliable —
+   * PUT is the same endpoint used for editing and is known to persist.
+   */
+  setCompleted: async (task: Task, completed: boolean): Promise<Task> => {
+    const { data } = await apiClient.put(`/tasks/${task.id}`, {
+      title: task.title,
+      description: task.description ?? null,
+      priority: task.priority,
+      category_id: task.categoryId ? Number(task.categoryId) : null,
+      due_date: toYmd(task.dueDate),
+      completed,
+    });
+    return normalizeTaskRaw(data);
   },
-
-  /** Toggle complete/undo depending on current status */
-  toggleComplete: async (task: Task): Promise<Task> => {
-  if (task.status === 'completed') {
-    const result = await tasksApi.undo(task.id);
-    // Force status in case API response is wrong
-    return { ...result, status: 'pending' };
-  } else {
-    const result = await tasksApi.complete(task.id);
-    // Force status in case API response is wrong
-    return { ...result, status: 'completed' };
-  }
-},
-  
 };

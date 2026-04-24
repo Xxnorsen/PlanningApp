@@ -85,7 +85,7 @@ export default function EditTaskScreen() {
         setDescription(t.description ?? '');
         setPriority(t.priority);
         setCategoryId(t.categoryId);
-        setDueDate(t.dueDate ? new Date(t.dueDate) : null);
+        setDueDate(t.dueDate ? new Date(t.dueDate.slice(0, 10) + 'T00:00:00') : null);
       } catch (e) {
         const err = toApiError(e);
         setError(err.message);
@@ -125,8 +125,12 @@ export default function EditTaskScreen() {
     outputRange: ['0deg', '180deg'],
   });
 
-  const toZeroTimeIso = (d: Date) =>
-    new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString();
+  const toYmd = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   const handleSave = async () => {
     if (!task) return;
@@ -135,13 +139,17 @@ export default function EditTaskScreen() {
       setError('Title is required.');
       return;
     }
+    if (!dueDate) {
+      setError('Due date is required.');
+      return;
+    }
     try {
       await updateTask(task.id, {
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
         categoryId,
-        dueDate: dueDate ? toZeroTimeIso(dueDate) : undefined,
+        dueDate: toYmd(dueDate),
       });
       router.back();
     } catch (e) {

@@ -95,13 +95,21 @@ export default function AddTaskScreen() {
     setShowPicker(false);
   };
 
-  const toZeroTimeIso = (d: Date) =>
-    new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString();
+  const toYmd = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   const handleSubmit = async () => {
     setError('');
     if (!title.trim()) {
       setError('Title is required.');
+      return;
+    }
+    if (!dueDate) {
+      setError('Due date is required.');
       return;
     }
     try {
@@ -110,7 +118,7 @@ export default function AddTaskScreen() {
         description: description.trim() || undefined,
         priority,
         categoryId,
-        dueDate: dueDate ? toZeroTimeIso(dueDate) : undefined,
+        dueDate: toYmd(dueDate),
       });
       router.back();
     } catch (e) {

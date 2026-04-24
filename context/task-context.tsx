@@ -12,7 +12,7 @@ interface TaskContextValue {
   createTask: (payload: CreateTaskPayload) => Promise<Task>;
   updateTask: (id: string, payload: UpdateTaskPayload) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
-  toggleComplete: (task: Task) => Promise<void>;
+  toggleComplete: (task: Task) => Promise<Task>;
   clearError: () => void;
 }
 
@@ -65,11 +65,23 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setTasks((prev) => prev.filter((t) => t.id !== id));
     }), []);
 
-  const toggleComplete = useCallback((task: Task) =>
-    run(async () => {
-      const updated = await tasksApi.toggleComplete(task);
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-    }), []);
+  // Optimistic toggle: flip status locally first, reconcile with server response,
+  // roll back on error. Completion day grouping depends on the backend
+  // eventually returning `completed_at` — see TODO in task-utils.ts.
+  const toggleComplete = useCallback(async (task: Task): Promise<Task> => {
+    const nextCompleted = task.status !== 'completed';
+    const optimistic: Task = { ...task, status: nextCompleted ? 'completed' : 'pending' };
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? optimistic : t)));
+    try {
+      const confirmed = await tasksApi.setCompleted(task, nextCompleted);
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? confirmed : t)));
+      return confirmed;
+    } catch (e: any) {
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
+      setError(e?.message ?? 'Failed to update task');
+      throw e;
+    }
+  }, []);
 
   const clearError = useCallback(() => setError(null), []);
 
