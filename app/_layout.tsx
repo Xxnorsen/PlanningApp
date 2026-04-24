@@ -52,9 +52,8 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="categories" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="create-categories" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="edit-task" options={{ headerShown: false }} />
-            <Stack.Screen name="edit-category" options={{ headerShown: false }} />
+            <Stack.Screen name="completed" options={{ headerShown: false }} />
           </Stack>
           <StatusBar style="light" />
         </CategoryProvider>

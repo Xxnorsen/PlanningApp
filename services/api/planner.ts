@@ -1,7 +1,6 @@
 import { apiClient } from './client';
 import type { Task } from '@/types/task';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
+import { normalizeTaskRaw } from './task-utils';
 
 export interface DayPlan {
   date: string;
@@ -11,14 +10,6 @@ export interface DayPlan {
 export interface WeeklyPlan {
   weekStart: string;
   days: DayPlan[];
-}
-
-// ── Raw shapes ────────────────────────────────────────────────────────────────
-
-interface RawDailyResponse {
-  date?: string;
-  tasks?: any[];
-  // some APIs return the tasks array directly
 }
 
 interface RawWeeklyDay {
@@ -32,48 +23,25 @@ interface RawWeeklyResponse {
   days?: RawWeeklyDay[];
 }
 
-import { normalizeTaskRaw } from './task-utils';
-
-// ── Planner API ───────────────────────────────────────────────────────────────
-
 export const plannerApi = {
-  /** GET /planner/daily?date=YYYY-MM-DD */
+  /** GET /planner/daily?date=YYYY-MM-DD — returns an array of TaskOut */
   getDaily: async (date: string): Promise<DayPlan> => {
-  const { data } = await apiClient.get<RawDailyResponse | any[]>('/planner/daily', {
-    params: { date },
-  });
+    const { data } = await apiClient.get<any[] | { tasks?: any[] }>('/planner/daily', {
+      params: { date },
+    });
+    const raw = Array.isArray(data) ? data : (data.tasks ?? []);
+    return { date, tasks: raw.map(normalizeTaskRaw) };
+  },
 
-  const raw = Array.isArray(data) ? data : ((data as RawDailyResponse).tasks ?? []);
-
-  // Backend doesn't return status/is_completed, so fetch each task fully
-  const fullTasks = await Promise.all(
-    raw.map(async (t: any) => {
-      try {
-        const { data: full } = await apiClient.get(`/tasks/${t.id}`);
-        return normalizeTaskRaw(full);
-      } catch {
-        return normalizeTaskRaw(t);
-      }
-    })
-  );
-
-  return { date, tasks: fullTasks };
-},
-
-  /**
-   * GET /planner/weekly?start_date=YYYY-MM-DD
-   * start_date must be a Sunday
-   */
+  /** GET /planner/weekly?start_date=YYYY-MM-DD */
   getWeekly: async (startDate: string): Promise<WeeklyPlan> => {
     const { data } = await apiClient.get<RawWeeklyResponse>('/planner/weekly', {
       params: { start_date: startDate },
     });
-
-    const days: DayPlan[] = (data.days ?? []).map((d: RawWeeklyDay) => ({
+    const days: DayPlan[] = (data.days ?? []).map((d) => ({
       date: d.date,
       tasks: (d.tasks ?? []).map(normalizeTaskRaw),
     }));
-
     return { weekStart: data.week_start ?? data.start_date ?? startDate, days };
   },
 };

@@ -231,54 +231,41 @@ export default function PlannerScreen() {
   const [calPickedDate, setCalPickedDate] = useState<string | null>(null);
   
   
-  const loadDay = useCallback(async (date: Date, isRefresh = false) => {
-  if (isRefresh) setRefreshing(true); else setLoading(true);
-  setError('');
-  try {
-    const plan = await plannerApi.getDaily(toIsoDate(date));
-
-    setTasks(prev => {
-      // Keep any tasks that are completed locally — backend filters them out
-      const localCompleted = prev.filter(t => t.status === 'completed');
-      
-      // Merge API tasks with local status
-      const currentStatusMap: Record<string, Task['status']> = {};
-      prev.forEach(t => { currentStatusMap[t.id] = t.status; });
-
-      const apiTasks = plan.tasks.map(t => ({
-        ...t,
-        status: currentStatusMap[t.id] ?? t.status,
-      }));
-
-      // Add back completed tasks that API didn't return
-      const apiIds = new Set(apiTasks.map(t => t.id));
-      const missingCompleted = localCompleted.filter(t => !apiIds.has(t.id));
-
-      return [...apiTasks, ...missingCompleted];
-    });
-  } catch (e) {
-    const err = toApiError(e);
-    setError(err.message);
-    if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
-      showApiErrorAlert(err);
+  // Day view uses /planner/daily. The "Completed" filter is day-agnostic
+  // (backend has no completed_at timestamp to group by), so it pulls from
+  // /tasks/completed/ directly.
+  const load = useCallback(async (date: Date, filter: Filter, isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    setError('');
+    try {
+      if (filter === 'Completed') {
+        setTasks(await tasksApi.getCompleted());
+      } else {
+        const plan = await plannerApi.getDaily(toIsoDate(date));
+        setTasks(plan.tasks);
+      }
+    } catch (e) {
+      const err = toApiError(e);
+      setError(err.message);
+      if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
+        showApiErrorAlert(err);
+      }
+      setTasks([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setTasks([]);
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-}, []);
+  }, []);
 
   useEffect(() => {
     fetchCategories().catch(() => {});
   }, [fetchCategories]);
 
-  // Reload when screen gains focus (e.g. after edit/create) and on date change
   useFocusEffect(
-  useCallback(() => {
-    loadDay(selectedDate);
-  }, [selectedDate, loadDay])
-);
+    useCallback(() => {
+      load(selectedDate, activeFilter);
+    }, [selectedDate, activeFilter, load]),
+  );
 
   const handleEdit = (id: string) => {
     router.push(`/edit-task?id=${id}`);
@@ -311,19 +298,17 @@ export default function PlannerScreen() {
   };
 
   const handleToggle = async (task: Task) => {
-  const optimisticStatus = task.status === 'completed' ? 'pending' : 'completed';
-  console.log('=== handleToggle ===', task.id, task.status, '->', optimisticStatus);
-  setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: optimisticStatus } : t));
-  
-  try {
-    const updated = await tasksApi.toggleComplete(task);
-    console.log('API response after toggle:', { id: updated.id, status: updated.status });
-    setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
-  } catch (e) {
-    setTasks(prev => prev.map(t => t.id === task.id ? task : t));
-    showApiErrorAlert(e);
-  }
-};
+    const nextCompleted = task.status !== 'completed';
+    const optimistic: Task = { ...task, status: nextCompleted ? 'completed' : 'pending' };
+    setTasks(prev => prev.map(t => (t.id === task.id ? optimistic : t)));
+    try {
+      const updated = await tasksApi.setCompleted(task, nextCompleted);
+      setTasks(prev => prev.map(t => (t.id === task.id ? updated : t)));
+    } catch (e) {
+      setTasks(prev => prev.map(t => (t.id === task.id ? task : t)));
+      showApiErrorAlert(e);
+    }
+  };
 
   const categoryMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -362,7 +347,7 @@ export default function PlannerScreen() {
             <Ionicons name="calendar-outline" size={18} color={COLORS.DARK_TEXT} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{headerLabel}</Text>
-          <TouchableOpacity style={styles.headerBtn} onPress={() => loadDay(selectedDate, true)}>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => load(selectedDate, activeFilter, true)}>
             <Ionicons name="refresh-outline" size={18} color={COLORS.DARK_TEXT} />
           </TouchableOpacity>
         </View>
@@ -437,7 +422,7 @@ export default function PlannerScreen() {
             <Text style={styles.emptyText}>{error}</Text>
             <TouchableOpacity
               style={styles.retryBtn}
-              onPress={() => loadDay(selectedDate)}
+              onPress={() => load(selectedDate, activeFilter)}
               activeOpacity={0.85}
             >
               <Text style={styles.retryText}>Retry</Text>
@@ -450,7 +435,7 @@ export default function PlannerScreen() {
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
-                onRefresh={() => loadDay(selectedDate, true)}
+                onRefresh={() => load(selectedDate, activeFilter, true)}
                 tintColor={COLORS.BACKGROUND}
               />
             }
