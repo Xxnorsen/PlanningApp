@@ -37,7 +37,7 @@ export default function WelcomeScreen() {
         }),
       ])
     ).start();
-  }, []);
+  }, [floatAnim]);
 
   // Auto-redirect only when the app first loads from storage (isLoading: true → false).
   // When coming back here via logout, isLoading is already false on mount so this never triggers.
@@ -46,7 +46,7 @@ export default function WelcomeScreen() {
     if (mountedWhileLoading.current && !isLoading && isAuthenticated) {
       router.replace('/(tabs)');
     }
-  }, [isLoading, isAuthenticated]);
+  }, [isLoading, isAuthenticated, router]);
 
   // Safety net: if somehow we land here while authenticated AFTER logout finishes,
   // don't bounce. User is here intentionally (via logout or "back" to welcome).

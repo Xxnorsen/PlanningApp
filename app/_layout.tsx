@@ -28,7 +28,7 @@ function AuthGate() {
     if (!isAuthenticated && inProtectedArea) {
       router.replace('/(auth)/login');
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [isAuthenticated, isLoading, segments, router]);
 
   return null;
 }

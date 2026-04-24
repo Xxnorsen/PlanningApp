@@ -231,7 +231,7 @@ export default function CategoriesScreen() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  useFocusEffect(useCallback(() => { fetchAll(); }, []));
+  useFocusEffect(useCallback(() => { fetchAll(); }, [fetchAll]));
 
   // Form
   const openCreate = () => { setEditing(null); setFormVisible(true); };

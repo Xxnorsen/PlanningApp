@@ -101,7 +101,7 @@ const CelebrationOverlay: React.FC<{ visible: boolean; onDone: () => void }> = (
 
     const t = setTimeout(onDone, 1600);
     return () => clearTimeout(t);
-  }, [visible]);
+  }, [visible, onDone, opacity, scale, particles]);
 
   if (!visible) return null;
 
