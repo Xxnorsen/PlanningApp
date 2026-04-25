@@ -16,7 +16,7 @@ const DARK_COLORS: ColorMap = {
   ACCENT: '#4A4AE8',
   CIRCLE_LIGHT: '#2A2A6E',
   CIRCLE_LIGHTER: '#7070CC',
-  LIME: '#C8FF3E',
+  LIME: '#87bd00',
   MINT: '#7FDCCC',
   PINK: '#FF9BCC',
   CARD: '#1C1C2E',
