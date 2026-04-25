@@ -26,7 +26,9 @@ const statusStyleFor = (colors: AppColors) => ({
 export type TaskStatusLabel = 'Done' | 'In Progress' | 'To-do';
 
 export function taskStatusLabel(t: Task): TaskStatusLabel {
-  return t.status === 'completed' ? 'Done' : 'To-do';
+  if (t.status === 'completed') return 'Done';
+  if (t.status === 'in_progress') return 'In Progress';
+  return 'To-do';
 }
 
 function formatTime(iso?: string): string {

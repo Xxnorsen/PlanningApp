@@ -26,9 +26,11 @@ import { useCategories } from '@/context/category-context';
 import { useTheme } from '@/context/theme-context';
 import { tasksApi } from '@/services/api/tasks';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
+import { localStatusStore } from '@/services/local-status';
 import { PriorityPicker } from '@/components/priority-picker';
 import { CategoryPicker } from '@/components/category-picker';
-import type { Task, TaskPriority } from '@/types/task';
+import { StatusPicker } from '@/components/status-picker';
+import type { Task, TaskPriority, TaskStatus } from '@/types/task';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -50,6 +52,7 @@ export default function EditTaskScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
+  const [status, setStatus] = useState<TaskStatus>('pending');
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [dueDate, setDueDate] = useState<Date | null>(null);
 
@@ -74,6 +77,7 @@ export default function EditTaskScreen() {
         setTitle(t.title);
         setDescription(t.description ?? '');
         setPriority(t.priority);
+        setStatus(t.status);
         setCategoryId(t.categoryId);
         setDueDate(t.dueDate ? new Date(t.dueDate.slice(0, 10) + 'T00:00:00') : null);
       } catch (e) {
@@ -136,9 +140,12 @@ export default function EditTaskScreen() {
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
+        status,
         categoryId,
         dueDate: toYmd(dueDate),
       });
+      // Persist status locally so in_progress survives API round-trips
+      await localStatusStore.set(task.id, status);
       router.back();
     } catch (e) {
       const err = toApiError(e);
@@ -331,6 +338,8 @@ export default function EditTaskScreen() {
             )}
 
             <PriorityPicker value={priority} onChange={setPriority} />
+
+            <StatusPicker value={status} onChange={setStatus} />
           </ScrollView>
 
           {/* Footer */}

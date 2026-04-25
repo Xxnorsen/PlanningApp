@@ -25,6 +25,7 @@ import { useCategories } from '@/context/category-context';
 import { useTheme } from '@/context/theme-context';
 import { TaskCard, taskStatusLabel } from '@/components/task-card';
 import { DeleteTaskModal } from '@/components/delete-task-modal';
+import { localStatusStore } from '@/services/local-status';
 
 type Filter = 'All' | 'To do' | 'In Progress' | 'Completed';
 
@@ -92,12 +93,16 @@ export default function PlannerScreen() {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError('');
     try {
+      let fetched: Task[];
       if (filter === 'Completed') {
-        setTasks(await tasksApi.getCompleted());
+        fetched = await tasksApi.getCompleted();
       } else {
         const plan = await plannerApi.getDaily(toIsoDate(date));
-        setTasks(plan.tasks);
+        fetched = plan.tasks;
       }
+      // Merge locally-stored status overrides (e.g. in_progress)
+      const overrides = await localStatusStore.getAll();
+      setTasks(localStatusStore.applyOverrides(fetched, overrides));
     } catch (e) {
       const err = toApiError(e);
       setError(err.message);
@@ -153,10 +158,13 @@ export default function PlannerScreen() {
 
   const handleToggle = async (task: Task) => {
     const nextCompleted = task.status !== 'completed';
-    const optimistic: Task = { ...task, status: nextCompleted ? 'completed' : 'pending' };
+    const nextStatus = nextCompleted ? 'completed' : 'pending';
+    const optimistic: Task = { ...task, status: nextStatus };
     setTasks(prev => prev.map(t => (t.id === task.id ? optimistic : t)));
     try {
       const updated = await tasksApi.setCompleted(task, nextCompleted);
+      // Sync local status store — clear in_progress when completing
+      await localStatusStore.set(task.id, nextStatus);
       setTasks(prev => prev.map(t => (t.id === task.id ? updated : t)));
     } catch (e) {
       setTasks(prev => prev.map(t => (t.id === task.id ? task : t)));

@@ -19,6 +19,7 @@ function toApiPayload(payload: CreateTaskPayload | UpdateTaskPayload) {
   const status = (payload as UpdateTaskPayload).status;
   if (status !== undefined) {
     body.completed = status === 'completed';
+    body.status = status;
   }
   return body;
 }
