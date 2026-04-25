@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, TextInput, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -6,6 +6,7 @@ import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import { useCategories } from '@/context/category-context';
+import { useTheme } from '@/context/theme-context';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 
 const CATEGORY_COLORS = ['#4A4AE8', '#FF9BCC', '#C8FF3E', '#FFA502', '#2ED573', '#FF4757', '#7070CC'];
@@ -28,6 +29,8 @@ export function CategoryPicker({
   activeFieldStyle = false,
 }: Props) {
   const { categories, createCategory } = useCategories();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [showNewInput, setShowNewInput] = useState(false);
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -69,13 +72,13 @@ export function CategoryPicker({
           </View>
           {arrowRotation ? (
             <Animated.View style={{ transform: [{ rotate: arrowRotation }] }}>
-              <Ionicons name="chevron-down" size={18} color={COLORS.MUTED_ON_CARD} />
+              <Ionicons name="chevron-down" size={18} color={colors.MUTED_ON_CARD} />
             </Animated.View>
           ) : (
             <Ionicons
               name={open ? 'chevron-up' : 'chevron-down'}
               size={18}
-              color={COLORS.MUTED_ON_CARD}
+              color={colors.MUTED_ON_CARD}
             />
           )}
         </View>
@@ -90,7 +93,7 @@ export function CategoryPicker({
               onToggle();
             }}
           >
-            <Ionicons name="close-circle-outline" size={18} color={COLORS.MUTED_ON_CARD} />
+            <Ionicons name="close-circle-outline" size={18} color={colors.MUTED_ON_CARD} />
             <Text style={[styles.optionText, !value && styles.selectedOptionText]}>None</Text>
           </TouchableOpacity>
 
@@ -128,7 +131,7 @@ export function CategoryPicker({
                 value={newName}
                 onChangeText={setNewName}
                 placeholder="Category name"
-                placeholderTextColor={COLORS.MUTED_ON_CARD}
+                placeholderTextColor={colors.MUTED_ON_CARD}
                 autoFocus
                 onSubmitEditing={handleCreate}
                 returnKeyType="done"
@@ -153,7 +156,7 @@ export function CategoryPicker({
                 }}
                 activeOpacity={0.85}
               >
-                <Ionicons name="close" size={18} color={COLORS.MUTED_ON_CARD} />
+                <Ionicons name="close" size={18} color={colors.MUTED_ON_CARD} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -162,8 +165,8 @@ export function CategoryPicker({
               onPress={() => setShowNewInput(true)}
               activeOpacity={0.8}
             >
-              <Ionicons name="add-circle" size={18} color={COLORS.BACKGROUND} />
-              <Text style={[styles.optionText, { color: COLORS.BACKGROUND, fontFamily: FontFamily.BOLD }]}>
+              <Ionicons name="add-circle" size={18} color={colors.ACCENT} />
+              <Text style={[styles.optionText, { color: colors.ACCENT, fontFamily: FontFamily.BOLD }]}>
                 New Category
               </Text>
             </TouchableOpacity>
@@ -174,14 +177,16 @@ export function CategoryPicker({
   );
 }
 
-const styles = StyleSheet.create({
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   fieldCard: {
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   fieldCardActive: {
     borderBottomLeftRadius: 0,
@@ -201,20 +206,20 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginBottom: 2,
   },
   valueText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 15,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
   dropdownMenu: {
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderRadius: 16,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
     marginBottom: 12,
     marginTop: -8,
   },
@@ -232,21 +237,21 @@ const styles = StyleSheet.create({
   },
   optionBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.INPUT_BORDER,
+    borderBottomColor: colors.INPUT_BORDER,
   },
   optionText: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 15,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
   selectedOptionText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.BACKGROUND,
+    color: colors.BACKGROUND,
   },
   emptyDropdown: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 13,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     paddingVertical: 14,
     textAlign: 'center',
   },
@@ -261,11 +266,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FontFamily.REGULAR,
     fontSize: 14,
-    color: COLORS.DARK_TEXT,
-    backgroundColor: COLORS.INPUT_BG,
+    color: colors.DARK_TEXT,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -273,14 +278,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   newCatBtnPrimary: {
-    backgroundColor: COLORS.LIME,
-    borderColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
+    borderColor: colors.LIME,
   },
 });

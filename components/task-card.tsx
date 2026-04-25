@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
+import { useTheme } from '@/context/theme-context';
 import type { Task, TaskPriority } from '@/types/task';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -14,13 +15,15 @@ const priorityIcon: Record<TaskPriority, { icon: IoniconName; bg: string; color:
   low:    { icon: 'leaf',          bg: '#E8F9EE', color: '#2ED573' },
 };
 
-const statusStyle = {
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const statusStyleFor = (colors: AppColors) => ({
   Done:          { bg: '#E8F9EE', text: '#2ED573' },
   'In Progress': { bg: '#FFF4E5', text: '#FFA502' },
-  'To-do':       { bg: COLORS.INPUT_BG, text: COLORS.BACKGROUND },
-};
+  'To-do':       { bg: colors.INPUT_BG, text: colors.ACCENT },
+});
 
-export type TaskStatusLabel = keyof typeof statusStyle;
+export type TaskStatusLabel = 'Done' | 'In Progress' | 'To-do';
 
 export function taskStatusLabel(t: Task): TaskStatusLabel {
   return t.status === 'completed' ? 'Done' : 'To-do';
@@ -40,6 +43,10 @@ interface Props {
 }
 
 export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const statusStyle = useMemo(() => statusStyleFor(colors), [colors]);
+
   const status = taskStatusLabel(task);
   const s = statusStyle[status];
   const p = priorityIcon[task.priority];
@@ -58,7 +65,7 @@ export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle }: Pro
       ) : null}
       <View style={styles.cardMeta}>
         <View style={styles.timeRow}>
-          <Ionicons name="time-outline" size={14} color={COLORS.MUTED_ON_CARD} />
+          <Ionicons name="time-outline" size={14} color={colors.MUTED_ON_CARD} />
           <Text style={styles.timeText}>{formatTime(task.dueDate)}</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: s.bg }]}>
@@ -96,14 +103,14 @@ export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   card: {
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
-    shadowColor: COLORS.BACKGROUND,
+    borderColor: colors.INPUT_BORDER,
+    shadowColor: colors.BACKGROUND,
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -118,7 +125,7 @@ const styles = StyleSheet.create({
   projectName: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     flex: 1,
   },
   iconCircle: {
@@ -129,13 +136,13 @@ const styles = StyleSheet.create({
   taskTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 16,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     marginBottom: 4,
   },
   taskDesc: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 13,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginBottom: 10,
     lineHeight: 18,
   },
@@ -150,7 +157,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 13,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
   },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   badgeText: { fontFamily: FontFamily.BOLD, fontSize: 11 },
@@ -159,30 +166,30 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     alignItems: 'center',
     justifyContent: 'center',
   },
   editBtn: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: colors.ACCENT,
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',
   },
   editBtnText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     fontSize: 14,
   },
   deleteBtn: {
     flex: 1,
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   deleteBtnText: {
     fontFamily: FontFamily.BOLD,

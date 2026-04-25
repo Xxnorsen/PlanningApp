@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -20,6 +20,7 @@ import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
+import { useTheme } from '@/context/theme-context';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 import { PriorityPicker } from '@/components/priority-picker';
 import { CategoryPicker } from '@/components/category-picker';
@@ -30,6 +31,8 @@ export default function AddTaskScreen() {
   const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
   const { createTask, isLoading } = useTasks();
   const { fetchAll: fetchCategories } = useCategories();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -105,7 +108,7 @@ export default function AddTaskScreen() {
 
           <View style={styles.header}>
             <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={20} color={COLORS.DARK_TEXT} />
+              <Ionicons name="chevron-back" size={20} color={colors.DARK_TEXT} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>New Event</Text>
             <View style={styles.headerBtnSpacer} />
@@ -140,7 +143,7 @@ export default function AddTaskScreen() {
                 value={title}
                 onChangeText={setTitle}
                 placeholder="What needs doing?"
-                placeholderTextColor={COLORS.MUTED_ON_CARD}
+                placeholderTextColor={colors.MUTED_ON_CARD}
               />
             </View>
 
@@ -152,7 +155,7 @@ export default function AddTaskScreen() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Add notes (optional)"
-                placeholderTextColor={COLORS.MUTED_ON_CARD}
+                placeholderTextColor={colors.MUTED_ON_CARD}
                 multiline
                 scrollEnabled={false}
               />
@@ -172,8 +175,8 @@ export default function AddTaskScreen() {
               onPress={() => setShowPicker(true)}
             >
               <View style={styles.fieldRow}>
-                <View style={[styles.iconContainer, { backgroundColor: COLORS.INPUT_BG }]}>
-                  <Ionicons name="calendar-outline" size={18} color={COLORS.BACKGROUND} />
+                <View style={[styles.iconContainer, { backgroundColor: colors.INPUT_BG }]}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.ACCENT} />
                 </View>
                 <View style={styles.textContainer}>
                   <Text style={styles.label}>Due Date</Text>
@@ -183,7 +186,7 @@ export default function AddTaskScreen() {
                 </View>
                 {dueDate && (
                   <TouchableOpacity onPress={() => setDueDate(null)} hitSlop={8}>
-                    <Ionicons name="close-circle" size={18} color={COLORS.MUTED_ON_CARD} />
+                    <Ionicons name="close-circle" size={18} color={colors.MUTED_ON_CARD} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -197,18 +200,18 @@ export default function AddTaskScreen() {
                     <Calendar
                       onDayPress={onDaySelect}
                       markedDates={dueDate ? {
-                        [dueDate.toISOString().split('T')[0]]: { selected: true, selectedColor: COLORS.BACKGROUND },
+                        [dueDate.toISOString().split('T')[0]]: { selected: true, selectedColor: colors.ACCENT },
                       } : {}}
                       theme={{
-                        backgroundColor: COLORS.CARD,
-                        calendarBackground: COLORS.CARD,
-                        selectedDayBackgroundColor: COLORS.BACKGROUND,
-                        selectedDayTextColor: COLORS.WHITE_TEXT,
-                        todayTextColor: COLORS.BACKGROUND,
-                        dayTextColor: COLORS.DARK_TEXT,
-                        textDisabledColor: COLORS.MUTED_ON_CARD,
-                        arrowColor: COLORS.BACKGROUND,
-                        monthTextColor: COLORS.DARK_TEXT,
+                        backgroundColor: colors.CARD,
+                        calendarBackground: colors.CARD,
+                        selectedDayBackgroundColor: colors.ACCENT,
+                        selectedDayTextColor: colors.WHITE_TEXT,
+                        todayTextColor: colors.ACCENT,
+                        dayTextColor: colors.DARK_TEXT,
+                        textDisabledColor: colors.MUTED_ON_CARD,
+                        arrowColor: colors.ACCENT,
+                        monthTextColor: colors.DARK_TEXT,
                         textDayFontFamily: FontFamily.REGULAR,
                         textMonthFontFamily: FontFamily.BOLD,
                         textDayHeaderFontFamily: FontFamily.BOLD,
@@ -239,7 +242,7 @@ export default function AddTaskScreen() {
                 <>
                   <Text style={styles.primaryButtonText}>Add Event</Text>
                   <View style={styles.arrowCircle}>
-                    <Ionicons name="arrow-forward" size={18} color={COLORS.DARK_TEXT} />
+                    <Ionicons name="arrow-forward" size={18} color={colors.DARK_TEXT} />
                   </View>
                 </>
               )}
@@ -251,11 +254,13 @@ export default function AddTaskScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
 
   hero: {
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: colors.BACKGROUND,
     paddingHorizontal: 20,
     paddingBottom: 44,
     position: 'relative',
@@ -263,19 +268,19 @@ const styles = StyleSheet.create({
   circleLarge: {
     position: 'absolute',
     width: 140, height: 140, borderRadius: 70,
-    backgroundColor: COLORS.CIRCLE_LIGHT,
+    backgroundColor: colors.CIRCLE_LIGHT,
     top: -30, left: -40, opacity: 0.6,
   },
   circleMedium: {
     position: 'absolute',
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.CIRCLE_LIGHTER,
+    backgroundColor: colors.CIRCLE_LIGHTER,
     top: 20, right: -20, opacity: 0.6,
   },
   circleDot: {
     position: 'absolute',
     width: 14, height: 14, borderRadius: 7,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     top: 40, right: '35%',
   },
 
@@ -288,27 +293,27 @@ const styles = StyleSheet.create({
   },
   headerBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     alignItems: 'center', justifyContent: 'center',
   },
   headerBtnSpacer: { width: 38, height: 38 },
   headerTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     letterSpacing: 0.3,
   },
   heroSubtitle: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 13,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
     marginTop: 12,
     zIndex: 1,
   },
   heroTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 28,
-    color: COLORS.LIME,
+    color: colors.LIME,
     letterSpacing: 1,
     marginTop: 2,
     zIndex: 1,
@@ -316,7 +321,7 @@ const styles = StyleSheet.create({
 
   card2: {
     flex: 1,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -28,
@@ -324,7 +329,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BORDER,
     alignSelf: 'center', marginBottom: 16,
   },
 
@@ -347,12 +352,12 @@ const styles = StyleSheet.create({
   },
 
   fieldCard: {
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   fieldRow: { flexDirection: 'row', alignItems: 'center' },
   iconContainer: {
@@ -364,50 +369,50 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginBottom: 2,
   },
   labelSolo: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginBottom: 4,
   },
   inputSolo: {
     fontFamily: FontFamily.BOLD,
     fontSize: 15,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     paddingVertical: 0,
   },
   valueText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 15,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
   multilineInput: {
     lineHeight: 22,
     fontFamily: FontFamily.REGULAR,
     fontSize: 14,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     minHeight: 70,
   },
-  descriptionCard: { backgroundColor: '#FFFCF5' },
+  descriptionCard: { backgroundColor: colors.CARD },
 
   footer: {
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
   },
   primaryButton: {
     height: 56,
     borderRadius: 30,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: COLORS.BACKGROUND,
+    shadowColor: colors.BACKGROUND,
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -418,7 +423,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 17,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     letterSpacing: 0.5,
   },
   arrowCircle: {
@@ -432,18 +437,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   calSheet: {
-    backgroundColor: COLORS.CARD, borderRadius: 24,
+    backgroundColor: colors.CARD, borderRadius: 24,
     padding: 20, width: 340,
   },
   calTitle: {
     fontFamily: FontFamily.BOLD, fontSize: 17,
-    color: COLORS.DARK_TEXT, marginBottom: 12, textAlign: 'center',
+    color: colors.DARK_TEXT, marginBottom: 12, textAlign: 'center',
   },
   calClearBtn: {
     marginTop: 12, alignItems: 'center', paddingVertical: 10,
   },
   calClearText: {
     fontFamily: FontFamily.REGULAR, fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
   },
 });

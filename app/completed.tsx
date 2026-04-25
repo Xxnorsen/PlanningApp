@@ -18,6 +18,7 @@ import { tasksApi } from '@/services/api/tasks';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
+import { useTheme } from '@/context/theme-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import type { Task } from '@/types/task';
 
@@ -25,6 +26,9 @@ export default function CompletedScreen() {
   const router = useRouter();
   const { toggleComplete } = useTasks();
   const { categories, fetchAll: fetchCategories } = useCategories();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -130,7 +134,7 @@ export default function CompletedScreen() {
           </View>
         ) : error && tasks.length === 0 ? (
           <View style={styles.center}>
-            <Ionicons name="alert-circle-outline" size={42} color={COLORS.LIME} />
+            <Ionicons name="alert-circle-outline" size={42} color={colors.LIME} />
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
               <Text style={styles.retryBtnText}>Retry</Text>
@@ -138,7 +142,7 @@ export default function CompletedScreen() {
           </View>
         ) : tasks.length === 0 ? (
           <View style={styles.center}>
-            <Ionicons name="checkmark-done-circle-outline" size={42} color={COLORS.INPUT_BORDER} />
+            <Ionicons name="checkmark-done-circle-outline" size={42} color={colors.INPUT_BORDER} />
             <Text style={styles.emptyText}>No completed tasks yet.</Text>
           </View>
         ) : filteredTasks.length === 0 ? (
@@ -155,7 +159,7 @@ export default function CompletedScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={() => load(true)}
-                tintColor={COLORS.LIME}
+                tintColor={colors.LIME}
               />
             }
           >
@@ -179,7 +183,7 @@ export default function CompletedScreen() {
                   activeOpacity={0.7}
                   style={styles.undoBtn}
                 >
-                  <Ionicons name="arrow-undo-outline" size={18} color={COLORS.MUTED_ON_CARD} />
+                  <Ionicons name="arrow-undo-outline" size={18} color={colors.MUTED_ON_CARD} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -190,8 +194,10 @@ export default function CompletedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
   hero: {
     paddingHorizontal: 20,
     paddingTop: 8,
@@ -205,24 +211,24 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     alignItems: 'center', justifyContent: 'center',
   },
   backBtnSpacer: { width: 38, height: 38 },
   heroTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 18,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     letterSpacing: 0.3,
   },
   heroSubtitle: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 13,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
   },
   card: {
     flex: 1,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -28,
@@ -231,7 +237,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BORDER,
     alignSelf: 'center', marginBottom: 20,
   },
   searchWrap: {
@@ -256,8 +262,8 @@ const styles = StyleSheet.create({
   list: { gap: 10, paddingBottom: 120 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORS.INPUT_BG, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BG, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.INPUT_BORDER,
   },
   checkIcon: {
     width: 28, height: 28, borderRadius: 14,
@@ -265,19 +271,19 @@ const styles = StyleSheet.create({
   },
   rowInfo: { flex: 1 },
   rowTitle: {
-    fontFamily: FontFamily.BOLD, fontSize: 14, color: COLORS.MUTED_ON_CARD,
+    fontFamily: FontFamily.BOLD, fontSize: 14, color: colors.MUTED_ON_CARD,
     textDecorationLine: 'line-through',
   },
   rowMeta: {
     fontFamily: FontFamily.REGULAR, fontSize: 11,
-    color: COLORS.MUTED_ON_CARD, marginTop: 2,
+    color: colors.MUTED_ON_CARD, marginTop: 2,
   },
   undoBtn: { padding: 6 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 60 },
-  errorText: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.DARK_TEXT, textAlign: 'center' },
+  errorText: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: colors.DARK_TEXT, textAlign: 'center' },
   retryBtn: {
     marginTop: 8,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     paddingHorizontal: 20, paddingVertical: 10,
     borderRadius: 20,
   },
@@ -285,6 +291,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.BOLD, fontSize: 14, color: COLORS.DARK_TEXT,
   },
   emptyText: {
-    fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD,
+    fontFamily: FontFamily.REGULAR, fontSize: 14, color: colors.MUTED_ON_CARD,
   },
 });

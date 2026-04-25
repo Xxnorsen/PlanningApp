@@ -3,6 +3,8 @@
 export const COLORS = {
   /** Main purple background — matches intro page */
   BACKGROUND: '#4A4AE8',
+  /** Brand purple accent — always purple regardless of theme */
+  ACCENT: '#4A4AE8',
   /** Slightly lighter purple for decorative circles */
   CIRCLE_LIGHT: '#6B6BFF',
   /** Even lighter purple circle */

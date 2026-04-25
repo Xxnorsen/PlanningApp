@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
+import { useTheme } from '@/context/theme-context';
 import type { TaskPriority } from '@/types/task';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -24,6 +25,9 @@ interface Props {
 }
 
 export function PriorityPicker({ value, onChange }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <>
       <Text style={styles.label}>Priority</Text>
@@ -61,11 +65,13 @@ export function PriorityPicker({ value, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   label: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginTop: 4,
     marginBottom: 8,
     marginLeft: 4,
@@ -79,9 +85,9 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: 14,
     paddingVertical: 12,
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   chipText: { fontFamily: FontFamily.BOLD, fontSize: 13 },
 });

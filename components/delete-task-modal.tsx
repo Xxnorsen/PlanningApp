@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
+import { useTheme } from '@/context/theme-context';
 
 const CAT_SIZE = 140;
 const CAT_OVERLAP = 70;
@@ -16,6 +17,9 @@ interface Props {
 }
 
 export function DeleteTaskModal({ visible, onClose, onConfirm, taskTitle }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -57,7 +61,9 @@ export function DeleteTaskModal({ visible, onClose, onConfirm, taskTitle }: Prop
   );
 }
 
-const styles = StyleSheet.create({
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(26,26,46,0.55)',
@@ -84,10 +90,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   card: {
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderRadius: 24,
     width: '100%',
-    shadowColor: COLORS.BACKGROUND,
+    shadowColor: colors.BACKGROUND,
     shadowOpacity: 0.18,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 10 },
@@ -104,14 +110,14 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FontFamily.BOLD,
     fontSize: 20,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
@@ -124,14 +130,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelBtn: {
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   deleteBtn: { backgroundColor: '#FF4757' },
   cancelBtnText: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     fontSize: 15,
   },
   deleteBtnText: {
