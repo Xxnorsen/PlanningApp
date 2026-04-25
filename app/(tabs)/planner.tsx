@@ -8,6 +8,7 @@ import {
   Modal,
   StatusBar,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { LoadingCat } from '@/components/ui/loading-cat';
@@ -80,6 +81,7 @@ export default function PlannerScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
@@ -180,10 +182,18 @@ export default function PlannerScreen() {
 
   const filteredTasks = tasks.filter(task => {
     const label = taskStatusLabel(task);
-    if (activeFilter === 'All') return true;
-    if (activeFilter === 'To do') return label === 'To-do';
-    if (activeFilter === 'In Progress') return label === 'In Progress';
-    if (activeFilter === 'Completed') return label === 'Done';
+    if (activeFilter !== 'All') {
+      if (activeFilter === 'To do' && label !== 'To-do') return false;
+      if (activeFilter === 'In Progress' && label !== 'In Progress') return false;
+      if (activeFilter === 'Completed' && label !== 'Done') return false;
+    }
+    // Search filter — match against title and description
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const inTitle = task.title.toLowerCase().includes(q);
+      const inDesc = (task.description ?? '').toLowerCase().includes(q);
+      if (!inTitle && !inDesc) return false;
+    }
     return true;
   });
 
@@ -252,6 +262,26 @@ export default function PlannerScreen() {
       {/* ── White card ── */}
       <View style={styles.card2}>
         <View style={styles.handle} />
+
+        {/* Search bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={18} color={colors.MUTED_ON_CARD} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search tasks..."
+            placeholderTextColor={colors.MUTED_ON_CARD}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8} style={styles.searchClear}>
+              <Ionicons name="close-circle" size={18} color={colors.MUTED_ON_CARD} />
+            </TouchableOpacity>
+          )}
+        </View>
+
 
         <ScrollView
           horizontal
@@ -556,8 +586,30 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   handle: {
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: colors.INPUT_BORDER,
-    alignSelf: 'center', marginBottom: 16,
+    alignSelf: 'center', marginBottom: 12,
   },
+
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.INPUT_BG,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.INPUT_BORDER,
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: {
+    flex: 1,
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: colors.DARK_TEXT,
+    paddingVertical: 0,
+  },
+  searchClear: { marginLeft: 6 },
 
   filterScroll: {
     paddingHorizontal: 20,
