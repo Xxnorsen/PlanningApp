@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { Category, CreateCategoryPayload } from '@/types/category';
 import { categoriesApi } from '@/services/api/categories';
+import { categoryOverrides } from '@/services/local-category-overrides';
 
 interface CategoryContextValue {
   categories: Category[];
@@ -36,12 +37,13 @@ export function CategoryProvider({ children }: { children: React.ReactNode }) {
   const fetchAll = useCallback(() =>
     run(async () => {
       const fresh = await categoriesApi.getAll();
-      setCategories((prev) => fresh.map((cat) => {
-        const existing = prev.find((c) => c.id === cat.id);
+      const overrides = await categoryOverrides.getAll();
+      setCategories(fresh.map((cat) => {
+        const override = overrides[cat.id];
         return {
           ...cat,
-          color: cat.color || existing?.color || '#4A4AE8',
-          icon: cat.icon || existing?.icon,
+          color: override?.color || cat.color || '#4A4AE8',
+          icon: override?.icon || cat.icon,
         };
       }));
     }), []);
@@ -49,10 +51,17 @@ export function CategoryProvider({ children }: { children: React.ReactNode }) {
   const createCategory = useCallback((payload: CreateCategoryPayload) =>
     run(async () => {
       const cat = await categoriesApi.create(payload);
+      // Save icon and color to local storage for persistence
+      if (payload.icon || payload.color) {
+        await categoryOverrides.set(cat.id, {
+          icon: payload.icon,
+          color: payload.color,
+        });
+      }
       const merged = {
         ...cat,
-        color: cat.color || payload.color,
-        icon: cat.icon || payload.icon,
+        color: payload.color || cat.color,
+        icon: payload.icon || cat.icon,
       };
       setCategories((prev) => [...prev, merged]);
       return merged;
@@ -61,6 +70,13 @@ export function CategoryProvider({ children }: { children: React.ReactNode }) {
   const updateCategory = useCallback((id: string, payload: Partial<CreateCategoryPayload>) =>
     run(async () => {
       const updated = await categoriesApi.update(id, payload);
+      // Save icon and color to local storage for persistence
+      if (payload.icon !== undefined || payload.color !== undefined) {
+        await categoryOverrides.set(id, {
+          icon: payload.icon,
+          color: payload.color,
+        });
+      }
       // Merge payload into API response so color/icon are always applied
       // even if the backend doesn't echo them back
       const merged = {
@@ -76,6 +92,8 @@ export function CategoryProvider({ children }: { children: React.ReactNode }) {
   const deleteCategory = useCallback((id: string) =>
     run(async () => {
       await categoriesApi.delete(id);
+      // Clean up local storage override
+      await categoryOverrides.remove(id);
       setCategories((prev) => prev.filter((c) => c.id !== id));
     }), []);
 

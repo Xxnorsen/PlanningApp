@@ -46,7 +46,7 @@ export const tasksApi = {
   },
 
   getById: async (id: string): Promise<Task> => {
-    const { data } = await apiClient.get(`/tasks/${id}`);
+    const { data } = await apiClient.get(`/tasks/${id}/`);
     return normalizeTaskRaw(data);
   },
 
@@ -56,12 +56,12 @@ export const tasksApi = {
   },
 
   update: async (id: string, payload: UpdateTaskPayload): Promise<Task> => {
-    const { data } = await apiClient.put(`/tasks/${id}`, toApiPayload(payload));
+    const { data } = await apiClient.put(`/tasks/${id}/`, toApiPayload(payload));
     return normalizeTaskRaw(data);
   },
 
   delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/tasks/${id}`);
+    await apiClient.delete(`/tasks/${id}/`);
   },
 
   /**
@@ -70,7 +70,7 @@ export const tasksApi = {
    * PUT is the same endpoint used for editing and is known to persist.
    */
   setCompleted: async (task: Task, completed: boolean): Promise<Task> => {
-    const { data } = await apiClient.put(`/tasks/${task.id}`, {
+    const { data } = await apiClient.put(`/tasks/${task.id}/`, {
       title: task.title,
       description: task.description ?? null,
       priority: task.priority,

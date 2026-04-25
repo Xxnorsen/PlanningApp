@@ -40,8 +40,8 @@ export const categoriesApi = {
     return normalizeCategory(data);
   },
 
-  /** DELETE /categories/{id} */
+  /** DELETE /categories/{id}/ */
   delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/categories/${id}`);
+    await apiClient.delete(`/categories/${id}/`);
   },
 };

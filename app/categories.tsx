@@ -13,6 +13,7 @@ import { useCategories } from '@/context/category-context';
 import { useTheme } from '@/context/theme-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import type { Category } from '@/types/category';
+import { tasksApi } from '@/services/api/tasks';
 
 // ─── Palette & icons ──────────────────────────────────────────────────────────
 
@@ -41,10 +42,12 @@ const DEFAULT_FORM: FormState = { name: '', color: PALETTE[0], icon: ICONS[0] };
 
 function CategoryRow({
   category,
+  taskCount,
   onEdit,
   onDelete,
 }: {
   category: Category;
+  taskCount: number;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -57,7 +60,7 @@ function CategoryRow({
       </View>
       <View style={styles.rowInfo}>
         <Text style={styles.rowName}>{category.name}</Text>
-        <Text style={styles.rowCount}>{category.taskCount ?? 0} Events</Text>
+        <Text style={styles.rowCount}>{taskCount} Events</Text>
       </View>
       <TouchableOpacity style={styles.actionBtn} onPress={onEdit} activeOpacity={0.7}>
         <Ionicons name="pencil-outline" size={17} color={colors.MUTED_ON_CARD} />
@@ -180,12 +183,14 @@ function FormModal({
 
 function DeleteModal({
   category,
+  taskCount,
   onConfirm,
   onCancel,
   busy,
   error,
 }: {
   category: Category | null;
+  taskCount: number;
   onConfirm: () => void;
   onCancel: () => void;
   busy: boolean;
@@ -201,7 +206,11 @@ function DeleteModal({
             <Ionicons name="trash-outline" size={26} color="#FF4757" />
           </View>
           <Text style={styles.delTitle}>Delete &quot;{category?.name}&quot;?</Text>
-          <Text style={styles.delBody}>Events in this category will be uncategorised.</Text>
+          <Text style={styles.delBody}>
+  {taskCount > 0
+    ? `This category has ${taskCount} task(s). They will be uncategorised.`
+    : 'This action cannot be undone.'}
+</Text>
 
           {error ? (
             <View style={styles.errorRow}>
@@ -240,7 +249,12 @@ export default function CategoriesScreen() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  useFocusEffect(useCallback(() => { fetchAll(); }, [fetchAll]));
+  const [tasks, setTasks] = useState<any[]>([]);
+
+  useFocusEffect(useCallback(() => {
+    fetchAll();
+    tasksApi.getAll().then(setTasks).catch(() => {});
+  }, [fetchAll]));
 
   // Form
   const openCreate = () => { setEditing(null); setFormVisible(true); };
@@ -264,22 +278,32 @@ export default function CategoriesScreen() {
   };
 
   // Delete
-  const openDelete = (c: Category) => { setDeleteError(''); setDeleteTarget(c); };
+  const openDelete = (c: Category) => {
+    const count = tasks.filter(t => t.categoryId === c.id).length;
+    setDeleteError('');
+    setDeleteTarget({ ...c, taskCount: count });
+  };
   const closeDelete = () => { setDeleteTarget(null); setDeleteError(''); };
 
   const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleteBusy(true);
-    setDeleteError('');
-    try {
-      await deleteCategory(deleteTarget.id);
-      closeDelete();
-    } catch (e: any) {
-      setDeleteError(e?.message ?? 'Could not delete. Please try again.');
-    } finally {
-      setDeleteBusy(false);
+  if (!deleteTarget) return;
+  setDeleteBusy(true);
+  setDeleteError('');
+  try {
+    const affected = tasks.filter(t => t.categoryId === deleteTarget.id);
+    if (affected.length > 0) {
+      await Promise.all(
+        affected.map(t => tasksApi.update(t.id, { categoryId: undefined }))
+      );
     }
-  };
+    await deleteCategory(deleteTarget.id);
+    closeDelete();
+  } catch (e: any) {
+    setDeleteError(e?.message ?? 'Could not delete. Please try again.');
+  } finally {
+    setDeleteBusy(false);
+  }
+};
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -312,14 +336,18 @@ export default function CategoriesScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            categories.map(cat => (
-              <CategoryRow
-                key={cat.id}
-                category={cat}
-                onEdit={() => openEdit(cat)}
-                onDelete={() => openDelete(cat)}
-              />
-            ))
+            categories.map(cat => {
+              const count = tasks.filter(t => t.categoryId === cat.id).length;
+              return (
+                <CategoryRow
+                  key={cat.id}
+                  category={cat}
+                  taskCount={count}
+                  onEdit={() => openEdit(cat)}
+                  onDelete={() => openDelete(cat)}
+                />
+              );
+            })
           )}
           <View style={{ height: 80 }} />
         </ScrollView>
@@ -335,6 +363,7 @@ export default function CategoriesScreen() {
 
       <DeleteModal
         category={deleteTarget}
+        taskCount={deleteTarget?.taskCount ?? 0}
         onConfirm={confirmDelete}
         onCancel={closeDelete}
         busy={deleteBusy}
