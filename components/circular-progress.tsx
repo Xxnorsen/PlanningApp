@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
+import { useTheme } from '@/context/theme-context';
 
 interface Props {
   progress: number;
 }
 
 export function CircularProgress({ progress }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const size = 80;
   const strokeWidth = 7;
   const pct = Math.max(0, Math.min(100, progress));
@@ -32,7 +36,7 @@ export function CircularProgress({ progress }: Props) {
             height: size,
             borderRadius: size / 2,
             borderWidth: strokeWidth,
-            borderColor: COLORS.LIME,
+            borderColor: colors.LIME,
             borderBottomColor: 'transparent',
             borderLeftColor: 'transparent',
             transform: [{ rotate: '-45deg' }],
@@ -44,10 +48,12 @@ export function CircularProgress({ progress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   pct: {
     fontFamily: FontFamily.BOLD,
-    color: COLORS.WHITE_TEXT,
+    color: colors.WHITE_TEXT,
     fontSize: 18,
   },
 });

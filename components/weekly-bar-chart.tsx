@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
+import { useTheme } from '@/context/theme-context';
 import type { Task } from '@/types/task';
 
 export type ProgressTab = 'Daily' | 'Weekly' | 'Monthly';
@@ -108,6 +109,9 @@ function getMonthlyData(tasks: Task[]): BarDatum[] {
 }
 
 export function WeeklyBarChart({ tasks, selectedTab }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const data =
     selectedTab === 'Daily'
       ? getDailyData(tasks)
@@ -121,7 +125,7 @@ export function WeeklyBarChart({ tasks, selectedTab }: Props) {
   if (!hasProgress) {
     return (
       <View style={styles.empty}>
-        <Ionicons name="bar-chart-outline" size={48} color={COLORS.INPUT_BORDER} />
+        <Ionicons name="bar-chart-outline" size={48} color={colors.INPUT_BORDER} />
         <Text style={styles.emptyText}>
           Every big goal starts with a small task. Complete one to unlock your first Task!
         </Text>
@@ -139,7 +143,7 @@ export function WeeklyBarChart({ tasks, selectedTab }: Props) {
                 styles.bar,
                 {
                   height: (item.value / maxValue) * 100,
-                  backgroundColor: item.value > 70 ? COLORS.LIME : '#E8F9EE',
+                  backgroundColor: item.value > 70 ? colors.LIME : '#E8F9EE',
                 },
               ]}
             />
@@ -151,7 +155,9 @@ export function WeeklyBarChart({ tasks, selectedTab }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: { height: 150 },
   bars: {
     flexDirection: 'row',
@@ -171,7 +177,7 @@ const styles = StyleSheet.create({
   },
   day: {
     fontSize: 10,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     fontFamily: FontFamily.REGULAR,
   },
   empty: {
@@ -181,7 +187,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     fontFamily: FontFamily.REGULAR,
     textAlign: 'center',
     lineHeight: 24,

@@ -12,10 +12,11 @@ type ColorMap = { readonly [K in keyof typeof COLORS]: string };
 // Dark palette — keeps brand accents (LIME, BACKGROUND purple) but
 // swaps the card/surface/text colors so content is readable on dark.
 const DARK_COLORS: ColorMap = {
-  BACKGROUND: '#4A4AE8',
-  CIRCLE_LIGHT: '#5C5CE8',
+  BACKGROUND: '#10101E',
+  ACCENT: '#4A4AE8',
+  CIRCLE_LIGHT: '#2A2A6E',
   CIRCLE_LIGHTER: '#7070CC',
-  LIME: '#C8FF3E',
+  LIME: '#87bd00',
   MINT: '#7FDCCC',
   PINK: '#FF9BCC',
   CARD: '#1C1C2E',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -25,44 +25,42 @@ import { useAuth } from '@/context/auth-context';
 import { useTheme } from '@/context/theme-context';
 import { apiClient } from '@/services/api/client';
 
-// ── Small reusable components ─────────────────────────────────────────────────
-
-function SectionHeader({ title }: { title: string }) {
-  return <Text style={styles.sectionHeader}>{title}</Text>;
-}
-
-function SettingRow({
-  icon,
-  label,
-  onPress,
-  danger,
-  right,
-}: {
-  icon: string;
-  label: string;
-  onPress?: () => void;
-  danger?: boolean;
-  right?: React.ReactNode;
-}) {
-  return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
-      <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
-        <Ionicons name={icon as any} size={18} color={danger ? '#FF4757' : COLORS.BACKGROUND} />
-      </View>
-      <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
-      {right ?? (onPress && !danger
-        ? <Ionicons name="chevron-forward" size={16} color={COLORS.MUTED_ON_CARD} />
-        : null)}
-    </TouchableOpacity>
-  );
-}
-
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
   const { isDark, toggleTheme, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const router = useRouter();
+
+  // Helpers declared inside so they close over themed `styles` + `colors`
+  const SectionHeader = ({ title }: { title: string }) => (
+    <Text style={styles.sectionHeader}>{title}</Text>
+  );
+
+  const SettingRow = ({
+    icon,
+    label,
+    onPress,
+    danger,
+    right,
+  }: {
+    icon: string;
+    label: string;
+    onPress?: () => void;
+    danger?: boolean;
+    right?: React.ReactNode;
+  }) => (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
+      <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
+        <Ionicons name={icon as any} size={18} color={danger ? '#FF4757' : colors.ACCENT} />
+      </View>
+      <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
+      {right ?? (onPress && !danger
+        ? <Ionicons name="chevron-forward" size={16} color={colors.MUTED_ON_CARD} />
+        : null)}
+    </TouchableOpacity>
+  );
 
   const [notifications, setNotifications] = useState(true);
 
@@ -447,59 +445,61 @@ export default function ProfileScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
 
   hero: { alignItems: 'center', paddingTop: 24, paddingBottom: 36 },
   avatarWrap: { position: 'relative', marginBottom: 12 },
   avatar: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.LIME, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center',
   },
   avatarImg: { width: 80, height: 80, borderRadius: 40 },
   avatarText: { fontFamily: FontFamily.BOLD, fontSize: 28, color: COLORS.DARK_TEXT },
   cameraBtn: {
     position: 'absolute', bottom: 0, right: 0,
     width: 26, height: 26, borderRadius: 13,
-    backgroundColor: COLORS.LIME, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: COLORS.BACKGROUND,
+    backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.ACCENT,
   },
-  heroName: { fontFamily: FontFamily.BOLD, fontSize: 20, color: COLORS.WHITE_TEXT, marginBottom: 4 },
-  heroEmail: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: COLORS.MUTED_ON_DARK },
+  heroName: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.WHITE_TEXT, marginBottom: 4 },
+  heroEmail: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: colors.MUTED_ON_DARK },
 
-  scroll: { flex: 1, backgroundColor: COLORS.INPUT_BG, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  scroll: { flex: 1, backgroundColor: colors.INPUT_BG, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   content: { paddingTop: 8, paddingHorizontal: 16 },
 
   sectionHeader: {
-    fontFamily: FontFamily.BOLD, fontSize: 12, color: COLORS.MUTED_ON_CARD,
+    fontFamily: FontFamily.BOLD, fontSize: 12, color: colors.MUTED_ON_CARD,
     letterSpacing: 0.8, textTransform: 'uppercase',
     marginTop: 20, marginBottom: 8, marginLeft: 4,
   },
-  card: { backgroundColor: COLORS.CARD, borderRadius: 16, overflow: 'hidden' },
-  divider: { height: 1, backgroundColor: COLORS.INPUT_BORDER, marginLeft: 52 },
+  card: { backgroundColor: colors.CARD, borderRadius: 16, overflow: 'hidden' },
+  divider: { height: 1, backgroundColor: colors.INPUT_BORDER, marginLeft: 52 },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
-  rowIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: COLORS.INPUT_BG, alignItems: 'center', justifyContent: 'center' },
+  rowIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.INPUT_BG, alignItems: 'center', justifyContent: 'center' },
   rowIconDanger: { backgroundColor: '#FFF0F1' },
-  rowLabel: { flex: 1, fontFamily: FontFamily.REGULAR, fontSize: 15, color: COLORS.DARK_TEXT },
+  rowLabel: { flex: 1, fontFamily: FontFamily.REGULAR, fontSize: 15, color: colors.DARK_TEXT },
   rowLabelDanger: { color: '#FF4757', fontFamily: FontFamily.BOLD },
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalCard: {
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 40,
   },
   modalHandle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER, alignSelf: 'center', marginBottom: 20,
+    backgroundColor: colors.INPUT_BORDER, alignSelf: 'center', marginBottom: 20,
   },
-  modalTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: COLORS.DARK_TEXT, marginBottom: 20 },
+  modalTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.DARK_TEXT, marginBottom: 20 },
 
   modalAvatarWrap: { alignSelf: 'center', position: 'relative', marginBottom: 8 },
   modalAvatar: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: COLORS.LIME, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center',
   },
   modalAvatarImg: { width: 72, height: 72, borderRadius: 36 },
   modalAvatarText: { fontFamily: FontFamily.BOLD, fontSize: 24, color: COLORS.DARK_TEXT },
@@ -507,29 +507,29 @@ const styles = StyleSheet.create({
   photoActionBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: COLORS.INPUT_BG, borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BG, borderWidth: 1, borderColor: colors.INPUT_BORDER,
   },
   photoRemoveBtn: { borderColor: '#FFCDD2', backgroundColor: '#FFF5F5' },
-  photoActionText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND },
+  photoActionText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT },
 
-  inputLabel: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND, marginBottom: 6 },
+  inputLabel: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT, marginBottom: 6 },
   input: {
-    backgroundColor: COLORS.INPUT_BG,
-    borderRadius: 12, borderWidth: 1, borderColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BG,
+    borderRadius: 12, borderWidth: 1, borderColor: colors.INPUT_BORDER,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontFamily: FontFamily.REGULAR, fontSize: 15, color: COLORS.DARK_TEXT,
+    fontFamily: FontFamily.REGULAR, fontSize: 15, color: colors.DARK_TEXT,
     marginBottom: 16,
   },
   inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   eyeBtn: { position: 'absolute', right: 14, top: 12 },
 
   primaryBtn: {
-    height: 52, borderRadius: 26, backgroundColor: COLORS.LIME,
+    height: 52, borderRadius: 26, backgroundColor: colors.LIME,
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
   primaryBtnText: { fontFamily: FontFamily.BOLD, fontSize: 16, color: COLORS.DARK_TEXT },
   cancelBtn: { alignItems: 'center', paddingVertical: 8 },
-  cancelBtnText: { fontFamily: FontFamily.REGULAR, fontSize: 15, color: COLORS.MUTED_ON_CARD },
+  cancelBtnText: { fontFamily: FontFamily.REGULAR, fontSize: 15, color: colors.MUTED_ON_CARD },
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   },
   successBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: COLORS.BACKGROUND, borderRadius: 14,
+    backgroundColor: colors.ACCENT, borderRadius: 14,
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   bannerText: {
