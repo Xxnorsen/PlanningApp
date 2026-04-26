@@ -8,6 +8,7 @@ import {
   Modal,
   StatusBar,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { LoadingCat } from '@/components/ui/loading-cat';
@@ -26,9 +27,9 @@ import { useTheme } from '@/context/theme-context';
 import { TaskCard, taskStatusLabel } from '@/components/task-card';
 import { DeleteTaskModal } from '@/components/delete-task-modal';
 
-type Filter = 'All' | 'To do' | 'In Progress' | 'Completed';
+type Filter = 'All' | 'To do' | 'Completed';
 
-const FILTERS: Filter[] = ['All', 'To do', 'In Progress', 'Completed'];
+const FILTERS: Filter[] = ['All', 'To do', 'Completed'];
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -83,8 +84,8 @@ export default function PlannerScreen() {
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calPickedDate, setCalPickedDate] = useState<string | null>(null);
-  
-  
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Day view uses /planner/daily. The "Completed" filter is day-agnostic
   // (backend has no completed_at timestamp to group by), so it pulls from
   // /tasks/completed/ directly.
@@ -172,10 +173,21 @@ export default function PlannerScreen() {
 
   const filteredTasks = tasks.filter(task => {
     const label = taskStatusLabel(task);
-    if (activeFilter === 'All') return true;
-    if (activeFilter === 'To do') return label === 'To-do';
-    if (activeFilter === 'In Progress') return label === 'In Progress';
-    if (activeFilter === 'Completed') return label === 'Done';
+    if (activeFilter === 'All') {
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return task.title.toLowerCase().includes(query) ||
+               (task.description && task.description.toLowerCase().includes(query));
+      }
+      return true;
+    }
+    if (activeFilter === 'To do' && label !== 'To-do') return false;
+    if (activeFilter === 'Completed' && label !== 'Done') return false;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      return task.title.toLowerCase().includes(query) ||
+             (task.description && task.description.toLowerCase().includes(query));
+    }
     return true;
   });
 
@@ -244,6 +256,21 @@ export default function PlannerScreen() {
       {/* ── White card ── */}
       <View style={styles.card2}>
         <View style={styles.handle} />
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={18} color={colors.INPUT_BORDER} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search tasks..."
+            placeholderTextColor={colors.INPUT_BORDER}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={18} color={colors.INPUT_BORDER} />
+            </TouchableOpacity>
+          )}
+        </View>
 
         <ScrollView
           horizontal
@@ -265,6 +292,8 @@ export default function PlannerScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        
 
         {loading ? (
           <View style={styles.centerLoader}>
@@ -578,6 +607,28 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.MUTED_ON_CARD,
   },
   filterTextActive: { color: colors.WHITE_TEXT },
+
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    marginTop:12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: colors.INPUT_BG,
+    borderWidth: 1.5,
+    borderColor: colors.INPUT_BORDER,
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: {
+    flex: 1,
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: colors.DARK_TEXT,
+  },
+  clearButton: { marginLeft: 8 },
 
   taskList: {
     paddingHorizontal: 20,

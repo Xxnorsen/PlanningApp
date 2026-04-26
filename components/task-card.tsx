@@ -18,15 +18,15 @@ const priorityIcon: Record<TaskPriority, { icon: IoniconName; bg: string; color:
 type AppColors = { readonly [K in keyof typeof COLORS]: string };
 
 const statusStyleFor = (colors: AppColors) => ({
-  Done:          { bg: '#E8F9EE', text: '#2ED573' },
-  'In Progress': { bg: '#FFF4E5', text: '#FFA502' },
-  'To-do':       { bg: colors.INPUT_BG, text: colors.ACCENT },
+  Done:    { bg: '#E8F9EE', text: '#2ED573' },
+  'To-do': { bg: colors.INPUT_BG, text: colors.ACCENT },
 });
 
-export type TaskStatusLabel = 'Done' | 'In Progress' | 'To-do';
+export type TaskStatusLabel = 'Done' | 'To-do';
 
 export function taskStatusLabel(t: Task): TaskStatusLabel {
-  return t.status === 'completed' ? 'Done' : 'To-do';
+  if (t.status === 'completed') return 'Done';
+  return 'To-do';
 }
 
 function formatTime(iso?: string): string {
