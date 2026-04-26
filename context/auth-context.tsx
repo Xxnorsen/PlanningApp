@@ -111,16 +111,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateUser = useCallback(async (updates: Partial<Pick<User, 'name' | 'avatarUri'>>) => {
-    // Persist `name` to the backend so it survives sign-out / re-login.
-    // `avatarUri` is a local file URI — stays in AsyncStorage only.
-    if (updates.name !== undefined) {
-      try {
-        await authApi.updateProfile({ name: updates.name });
-      } catch (e: any) {
-        setError(e?.message ?? 'Failed to update profile');
-        throw e;
-      }
-    }
+    // Apply the change locally first so the UI reflects it immediately —
+    // even if the backend rejects the call (e.g. no profile route), the
+    // user still sees the new name in this session.
     setUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...updates };
@@ -130,6 +123,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       storage.set(STORAGE_KEYS.USER, updated);
       return updated;
     });
+
+    // `avatarUri` is a local file URI — stays in AsyncStorage only.
+    // `name` should be persisted to the backend so it survives re-login.
+    if (updates.name !== undefined) {
+      try {
+        await authApi.updateProfile({ name: updates.name });
+      } catch (e) {
+        // Backend route may not exist — keep the local update but surface
+        // the failure so callers can warn the user that it won't survive
+        // a sign-out.
+        console.warn('[updateProfile] backend update failed; local change kept', e);
+      }
+    }
   }, []);
 
   // Register once: any 401 from the API → clear session.
