@@ -23,9 +23,6 @@ import { LoadingCat } from '@/components/ui/loading-cat';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 import { useMemo } from 'react';
 
-const TOTAL_STEPS = 3;
-const CURRENT_STEP = 1;
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function validateName(v: string) {
   if (!v.trim()) return 'Full name is required.';
@@ -153,20 +150,6 @@ export default function RegisterScreen() {
 
           <View style={styles.card}>
             <View style={styles.handle} />
-
-            <View style={styles.progressRow}>
-              <View style={styles.dots}>
-                {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-                  <View
-                    key={i}
-                    style={i === CURRENT_STEP - 1 ? styles.dotActive : styles.dotInactive}
-                  />
-                ))}
-              </View>
-              <Text style={styles.stepText}>
-                Step {CURRENT_STEP} of {TOTAL_STEPS}
-              </Text>
-            </View>
 
             <Text style={styles.cardTitle}>Personal info</Text>
             <Text style={styles.cardSubtitle}>Tell us a little about yourself</Text>
@@ -321,17 +304,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 24,
   },
-
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  dots: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  dotActive: { width: 24, height: 8, borderRadius: 4, backgroundColor: colors.ACCENT },
-  dotInactive: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.INPUT_BORDER },
-  stepText: { fontFamily: FontFamily.REGULAR, fontSize: 12, color: colors.MUTED_ON_CARD },
 
   cardTitle: {
     fontFamily: FontFamily.BOLD,
