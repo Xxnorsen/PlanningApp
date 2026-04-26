@@ -26,11 +26,10 @@ import { useCategories } from '@/context/category-context';
 import { useTheme } from '@/context/theme-context';
 import { TaskCard, taskStatusLabel } from '@/components/task-card';
 import { DeleteTaskModal } from '@/components/delete-task-modal';
-import { localStatusStore } from '@/services/local-status';
 
-type Filter = 'All' | 'To do' | 'In Progress' | 'Completed';
+type Filter = 'All' | 'To do' | 'Completed';
 
-const FILTERS: Filter[] = ['All', 'To do', 'In Progress', 'Completed'];
+const FILTERS: Filter[] = ['All', 'To do', 'Completed'];
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -81,13 +80,12 @@ export default function PlannerScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calPickedDate, setCalPickedDate] = useState<string | null>(null);
-  
-  
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Day view uses /planner/daily. The "Completed" filter is day-agnostic
   // (backend has no completed_at timestamp to group by), so it pulls from
   // /tasks/completed/ directly.
@@ -95,16 +93,12 @@ export default function PlannerScreen() {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError('');
     try {
-      let fetched: Task[];
       if (filter === 'Completed') {
-        fetched = await tasksApi.getCompleted();
+        setTasks(await tasksApi.getCompleted());
       } else {
         const plan = await plannerApi.getDaily(toIsoDate(date));
-        fetched = plan.tasks;
+        setTasks(plan.tasks);
       }
-      // Merge locally-stored status overrides (e.g. in_progress)
-      const overrides = await localStatusStore.getAll();
-      setTasks(localStatusStore.applyOverrides(fetched, overrides));
     } catch (e) {
       const err = toApiError(e);
       setError(err.message);
@@ -160,13 +154,10 @@ export default function PlannerScreen() {
 
   const handleToggle = async (task: Task) => {
     const nextCompleted = task.status !== 'completed';
-    const nextStatus = nextCompleted ? 'completed' : 'pending';
-    const optimistic: Task = { ...task, status: nextStatus };
+    const optimistic: Task = { ...task, status: nextCompleted ? 'completed' : 'pending' };
     setTasks(prev => prev.map(t => (t.id === task.id ? optimistic : t)));
     try {
       const updated = await tasksApi.setCompleted(task, nextCompleted);
-      // Sync local status store — clear in_progress when completing
-      await localStatusStore.set(task.id, nextStatus);
       setTasks(prev => prev.map(t => (t.id === task.id ? updated : t)));
     } catch (e) {
       setTasks(prev => prev.map(t => (t.id === task.id ? task : t)));
@@ -182,17 +173,20 @@ export default function PlannerScreen() {
 
   const filteredTasks = tasks.filter(task => {
     const label = taskStatusLabel(task);
-    if (activeFilter !== 'All') {
-      if (activeFilter === 'To do' && label !== 'To-do') return false;
-      if (activeFilter === 'In Progress' && label !== 'In Progress') return false;
-      if (activeFilter === 'Completed' && label !== 'Done') return false;
+    if (activeFilter === 'All') {
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return task.title.toLowerCase().includes(query) ||
+               (task.description && task.description.toLowerCase().includes(query));
+      }
+      return true;
     }
-    // Search filter — match against title and description
+    if (activeFilter === 'To do' && label !== 'To-do') return false;
+    if (activeFilter === 'Completed' && label !== 'Done') return false;
     if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      const inTitle = task.title.toLowerCase().includes(q);
-      const inDesc = (task.description ?? '').toLowerCase().includes(q);
-      if (!inTitle && !inDesc) return false;
+      const query = searchQuery.toLowerCase();
+      return task.title.toLowerCase().includes(query) ||
+             (task.description && task.description.toLowerCase().includes(query));
     }
     return true;
   });
@@ -262,26 +256,21 @@ export default function PlannerScreen() {
       {/* ── White card ── */}
       <View style={styles.card2}>
         <View style={styles.handle} />
-
-        {/* Search bar */}
         <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={18} color={colors.MUTED_ON_CARD} style={styles.searchIcon} />
+          <Ionicons name="search-outline" size={18} color={colors.INPUT_BORDER} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
+            placeholder="Search tasks..."
+            placeholderTextColor={colors.INPUT_BORDER}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search tasks..."
-            placeholderTextColor={colors.MUTED_ON_CARD}
-            returnKeyType="search"
-            autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8} style={styles.searchClear}>
-              <Ionicons name="close-circle" size={18} color={colors.MUTED_ON_CARD} />
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={18} color={colors.INPUT_BORDER} />
             </TouchableOpacity>
           )}
         </View>
-
 
         <ScrollView
           horizontal
@@ -303,6 +292,8 @@ export default function PlannerScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        
 
         {loading ? (
           <View style={styles.centerLoader}>
@@ -586,30 +577,8 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   handle: {
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: colors.INPUT_BORDER,
-    alignSelf: 'center', marginBottom: 12,
+    alignSelf: 'center', marginBottom: 16,
   },
-
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.INPUT_BG,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 12,
-    paddingHorizontal: 14,
-    height: 44,
-    borderWidth: 1,
-    borderColor: colors.INPUT_BORDER,
-  },
-  searchIcon: { marginRight: 8 },
-  searchInput: {
-    flex: 1,
-    fontFamily: FontFamily.REGULAR,
-    fontSize: 14,
-    color: colors.DARK_TEXT,
-    paddingVertical: 0,
-  },
-  searchClear: { marginLeft: 6 },
 
   filterScroll: {
     paddingHorizontal: 20,
@@ -638,6 +607,28 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.MUTED_ON_CARD,
   },
   filterTextActive: { color: colors.WHITE_TEXT },
+
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    marginTop:12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: colors.INPUT_BG,
+    borderWidth: 1.5,
+    borderColor: colors.INPUT_BORDER,
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: {
+    flex: 1,
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: colors.DARK_TEXT,
+  },
+  clearButton: { marginLeft: 8 },
 
   taskList: {
     paddingHorizontal: 20,

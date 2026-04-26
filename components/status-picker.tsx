@@ -14,9 +14,8 @@ export const STATUS_OPTIONS: {
   color: string;
   icon: IoniconName;
 }[] = [
-  { value: 'pending',      label: 'To do',       color: '#5F27CD', icon: 'list-outline' },
-  { value: 'in_progress', label: 'In Progress', color: '#FFA502', icon: 'time-outline' },
-  { value: 'completed',   label: 'Completed',   color: '#2ED573', icon: 'checkmark-circle-outline' },
+  { value: 'pending',    label: 'To do',     color: '#5F27CD', icon: 'list-outline' },
+  { value: 'completed', label: 'Completed', color: '#2ED573', icon: 'checkmark-circle-outline' },
 ];
 
 interface Props {

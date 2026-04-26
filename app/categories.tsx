@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,10 +11,10 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useCategories } from '@/context/category-context';
+import { useTasks } from '@/context/task-context';
 import { useTheme } from '@/context/theme-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import type { Category } from '@/types/category';
-import { tasksApi } from '@/services/api/tasks';
 
 // ─── Palette & icons ──────────────────────────────────────────────────────────
 
@@ -60,7 +61,9 @@ function CategoryRow({
       </View>
       <View style={styles.rowInfo}>
         <Text style={styles.rowName}>{category.name}</Text>
-        <Text style={styles.rowCount}>{taskCount} Events</Text>
+        <Text style={styles.rowCount}>
+          {taskCount} {taskCount === 1 ? 'Event' : 'Events'}
+        </Text>
       </View>
       <TouchableOpacity style={styles.actionBtn} onPress={onEdit} activeOpacity={0.7}>
         <Ionicons name="pencil-outline" size={17} color={colors.MUTED_ON_CARD} />
@@ -108,71 +111,108 @@ function FormModal({
     onSave({ ...form, name: form.name.trim() });
   };
 
+  // Animate preview when icon or color changes
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const prevIconRef = useRef(form.icon);
+  const prevColorRef = useRef(form.color);
+
+  useEffect(() => {
+    if (form.icon !== prevIconRef.current || form.color !== prevColorRef.current) {
+      prevIconRef.current = form.icon;
+      prevColorRef.current = form.color;
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 0.75, duration: 100, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 4, tension: 200, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [form.icon, form.color]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.sheet}>
           <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>{initial ? 'Edit Category' : 'New Category'}</Text>
 
-          {/* Live preview */}
-          <View style={[styles.preview, { backgroundColor: form.color + '22' }]}>
-            <Ionicons name={form.icon as any} size={32} color={form.color} />
-          </View>
+          {/* ↓ ScrollView makes the sheet scrollable when the keyboard is open */}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.sheetScroll}
+          >
+            <Text style={styles.sheetTitle}>{initial ? 'Edit Category' : 'New Category'}</Text>
 
-          {/* Error */}
-          {error ? (
-            <View style={styles.errorRow}>
-              <Ionicons name="alert-circle" size={15} color="#fff" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Name */}
-          <Text style={styles.label}>Name</Text>
-          <TextInput
-            style={[styles.input, !!error && !form.name.trim() && styles.inputError]}
-            value={form.name}
-            onChangeText={v => { set({ name: v }); setError(''); }}
-            placeholder="e.g. Work, Fitness…"
-            placeholderTextColor={colors.MUTED_ON_CARD}
-            autoFocus
-          />
-
-          {/* Color */}
-          <Text style={styles.label}>Color</Text>
-          <View style={styles.palette}>
-            {PALETTE.map(c => (
-              <TouchableOpacity
-                key={c}
-                style={[styles.swatch, { backgroundColor: c }, form.color === c && styles.swatchActive]}
-                onPress={() => set({ color: c })}
-                activeOpacity={0.8}
-              />
-            ))}
-          </View>
-
-          {/* Icon */}
-          <Text style={styles.label}>Icon</Text>
-          <View style={styles.iconGrid}>
-            {ICONS.map(ic => (
-              <TouchableOpacity
-                key={ic}
-                style={[styles.iconBtn, form.icon === ic && { backgroundColor: form.color + '33', borderColor: form.color }]}
-                onPress={() => set({ icon: ic })}
-                activeOpacity={0.8}
+            {/* Live preview */}
+            <View style={styles.previewWrapper}>
+              <Animated.View
+                style={[
+                  styles.preview,
+                  { backgroundColor: form.color + '22', transform: [{ scale: scaleAnim }] },
+                ]}
               >
-                <Ionicons name={ic as any} size={20} color={form.icon === ic ? form.color : colors.MUTED_ON_CARD} />
-              </TouchableOpacity>
-            ))}
-          </View>
+                <Ionicons name={form.icon as any} size={32} color={form.color} />
+              </Animated.View>
+              <Text style={[styles.previewName, { color: form.color }]} numberOfLines={1}>
+                {form.name.trim() || 'Category Name'}
+              </Text>
+            </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={submit} disabled={busy} activeOpacity={0.85}>
-            {busy ? <LoadingCat size={36} /> : <Text style={styles.saveBtnText}>{initial ? 'Save Changes' : 'Create Category'}</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
+            {/* Error */}
+            {error ? (
+              <View style={styles.errorRow}>
+                <Ionicons name="alert-circle" size={15} color="#fff" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Name */}
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              style={[styles.input, !!error && !form.name.trim() && styles.inputError]}
+              value={form.name}
+              onChangeText={v => { set({ name: v }); setError(''); }}
+              placeholder="e.g. Work, Fitness…"
+              placeholderTextColor={colors.MUTED_ON_CARD}
+              autoFocus
+            />
+
+            {/* Color */}
+            <Text style={styles.label}>Color</Text>
+            <View style={styles.palette}>
+              {PALETTE.map(c => (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.swatch, { backgroundColor: c }, form.color === c && styles.swatchActive]}
+                  onPress={() => set({ color: c })}
+                  activeOpacity={0.8}
+                />
+              ))}
+            </View>
+
+            {/* Icon */}
+            <Text style={styles.label}>Icon</Text>
+            <View style={styles.iconGrid}>
+              {ICONS.map(ic => (
+                <TouchableOpacity
+                  key={ic}
+                  style={[styles.iconBtn, form.icon === ic && { backgroundColor: form.color + '33', borderColor: form.color }]}
+                  onPress={() => set({ icon: ic })}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name={ic as any} size={20} color={form.icon === ic ? form.color : colors.MUTED_ON_CARD} />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.saveBtn} onPress={submit} disabled={busy} activeOpacity={0.85}>
+              {busy ? <LoadingCat size={36} /> : <Text style={styles.saveBtnText}>{initial ? 'Save Changes' : 'Create Category'}</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.7}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -183,14 +223,12 @@ function FormModal({
 
 function DeleteModal({
   category,
-  taskCount,
   onConfirm,
   onCancel,
   busy,
   error,
 }: {
   category: Category | null;
-  taskCount: number;
   onConfirm: () => void;
   onCancel: () => void;
   busy: boolean;
@@ -206,11 +244,7 @@ function DeleteModal({
             <Ionicons name="trash-outline" size={26} color="#FF4757" />
           </View>
           <Text style={styles.delTitle}>Delete &quot;{category?.name}&quot;?</Text>
-          <Text style={styles.delBody}>
-  {taskCount > 0
-    ? `This category has ${taskCount} task(s). They will be uncategorised.`
-    : 'This action cannot be undone.'}
-</Text>
+          <Text style={styles.delBody}>Events in this category will be uncategorised.</Text>
 
           {error ? (
             <View style={styles.errorRow}>
@@ -238,8 +272,18 @@ function DeleteModal({
 export default function CategoriesScreen() {
   const router = useRouter();
   const { categories, isLoading, fetchAll, createCategory, updateCategory, deleteCategory } = useCategories();
+  const { tasks } = useTasks();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  // Count tasks per category from local task list (fallback since backend omits task_count)
+  const taskCountsByCategory = useMemo(() => {
+    const counts: Record<string, number> = {};
+    tasks.forEach((t) => {
+      if (t.categoryId) counts[t.categoryId] = (counts[t.categoryId] ?? 0) + 1;
+    });
+    return counts;
+  }, [tasks]);
 
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
@@ -249,27 +293,25 @@ export default function CategoriesScreen() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  const [tasks, setTasks] = useState<any[]>([]);
-
-  useFocusEffect(useCallback(() => {
-    fetchAll();
-    tasksApi.getAll().then(setTasks).catch(() => {});
-  }, [fetchAll]));
+  useFocusEffect(useCallback(() => { fetchAll(); }, [fetchAll]));
 
   // Form
   const openCreate = () => { setEditing(null); setFormVisible(true); };
   const openEdit = (c: Category) => { setEditing(c); setFormVisible(true); };
-  const closeForm = () => { setFormVisible(false); setEditing(null); };
+  const closeForm = () => { setFormVisible(false); setTimeout(() => setEditing(null), 300); };
 
   const handleSave = async (form: FormState) => {
+    // Capture id immediately — closing the form nulls `editing` before the async call resolves
+    const editingId = editing?.id ?? null;
     setFormBusy(true);
     try {
-      if (editing) {
-        await updateCategory(editing.id, form);
+      if (editingId) {
+        await updateCategory(editingId, form);
       } else {
         await createCategory(form);
       }
       closeForm();
+      fetchAll(); // refresh list so the updated name/icon appears immediately
     } catch {
       // error shown by context
     } finally {
@@ -278,32 +320,22 @@ export default function CategoriesScreen() {
   };
 
   // Delete
-  const openDelete = (c: Category) => {
-    const count = tasks.filter(t => t.categoryId === c.id).length;
-    setDeleteError('');
-    setDeleteTarget({ ...c, taskCount: count });
-  };
+  const openDelete = (c: Category) => { setDeleteError(''); setDeleteTarget(c); };
   const closeDelete = () => { setDeleteTarget(null); setDeleteError(''); };
 
   const confirmDelete = async () => {
-  if (!deleteTarget) return;
-  setDeleteBusy(true);
-  setDeleteError('');
-  try {
-    const affected = tasks.filter(t => t.categoryId === deleteTarget.id);
-    if (affected.length > 0) {
-      await Promise.all(
-        affected.map(t => tasksApi.update(t.id, { categoryId: undefined }))
-      );
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    setDeleteError('');
+    try {
+      await deleteCategory(deleteTarget.id);
+      closeDelete();
+    } catch (e: any) {
+      setDeleteError(e?.message ?? 'Could not delete. Please try again.');
+    } finally {
+      setDeleteBusy(false);
     }
-    await deleteCategory(deleteTarget.id);
-    closeDelete();
-  } catch (e: any) {
-    setDeleteError(e?.message ?? 'Could not delete. Please try again.');
-  } finally {
-    setDeleteBusy(false);
-  }
-};
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -336,18 +368,15 @@ export default function CategoriesScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            categories.map(cat => {
-              const count = tasks.filter(t => t.categoryId === cat.id).length;
-              return (
-                <CategoryRow
-                  key={cat.id}
-                  category={cat}
-                  taskCount={count}
-                  onEdit={() => openEdit(cat)}
-                  onDelete={() => openDelete(cat)}
-                />
-              );
-            })
+            categories.map(cat => (
+              <CategoryRow
+                key={cat.id}
+                category={cat}
+                taskCount={cat.taskCount ?? taskCountsByCategory[cat.id] ?? 0}
+                onEdit={() => openEdit(cat)}
+                onDelete={() => openDelete(cat)}
+              />
+            ))
           )}
           <View style={{ height: 80 }} />
         </ScrollView>
@@ -363,7 +392,6 @@ export default function CategoriesScreen() {
 
       <DeleteModal
         category={deleteTarget}
-        taskCount={deleteTarget?.taskCount ?? 0}
         onConfirm={confirmDelete}
         onCancel={closeDelete}
         busy={deleteBusy}
@@ -410,11 +438,23 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
 
   // Shared modal pieces
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: { backgroundColor: colors.CARD, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
+  sheet: {
+    backgroundColor: colors.CARD,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingTop: 16,
+    paddingHorizontal: 24,
+    // maxHeight keeps the sheet from filling the whole screen and allows scrolling
+    maxHeight: '90%',
+  },
+  // Content padding lives here instead of on sheet so the ScrollView can reach the bottom
+  sheetScroll: { paddingBottom: 40 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.INPUT_BORDER, alignSelf: 'center', marginBottom: 20 },
   sheetTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.DARK_TEXT, marginBottom: 16 },
 
-  preview: { width: 64, height: 64, borderRadius: 18, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  previewWrapper: { alignItems: 'center', marginBottom: 16 },
+  preview: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  previewName: { fontFamily: FontFamily.BOLD, fontSize: 15, maxWidth: 200, textAlign: 'center' },
 
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FF4757', borderRadius: 12, padding: 12, marginBottom: 12 },
   errorText: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: '#fff', flex: 1 },

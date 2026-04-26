@@ -36,12 +36,12 @@ export const categoriesApi = {
 
   /** PUT /categories/{id}/ */
   update: async (id: string, payload: Partial<CreateCategoryPayload>): Promise<Category> => {
-    const { data } = await apiClient.put<RawCategory>(`/categories/${id}/`, payload);
+    const { data } = await apiClient.put<RawCategory>(`/categories/${id}`, payload);
     return normalizeCategory(data);
   },
 
   /** DELETE /categories/{id}/ */
   delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/categories/${id}/`);
+    await apiClient.delete(`/categories/${id}`);
   },
 };

@@ -14,13 +14,11 @@ export function normalizeTaskRaw(raw: any): Task {
     raw.status === 'completed' ||
     raw.is_completed === true;
 
-  const isInProgress = !isCompleted && raw.status === 'in_progress';
-
   return {
     id: String(raw.id),
     title: raw.title ?? '',
     description: raw.description ?? undefined,
-    status: isCompleted ? 'completed' : isInProgress ? 'in_progress' : 'pending',
+    status: isCompleted ? 'completed' : 'pending',
     priority: raw.priority ?? 'medium',
     categoryId: raw.category_id != null ? String(raw.category_id) : undefined,
     dueDate: raw.due_date ?? undefined,
