@@ -23,4 +23,5 @@ export const STORAGE_KEYS = {
   AUTH_TOKEN: 'auth_token',
   USER: 'user',
   SESSION_STICKER: 'session_sticker',
+  IN_PROGRESS_TASK_IDS: 'in_progress_task_ids',
 } as const;

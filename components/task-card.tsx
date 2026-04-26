@@ -26,7 +26,9 @@ const statusStyleFor = (colors: AppColors) => ({
 export type TaskStatusLabel = 'Done' | 'In Progress' | 'To-do';
 
 export function taskStatusLabel(t: Task): TaskStatusLabel {
-  return t.status === 'completed' ? 'Done' : 'To-do';
+  if (t.status === 'completed') return 'Done';
+  if (t.status === 'in_progress') return 'In Progress';
+  return 'To-do';
 }
 
 function formatTime(iso?: string): string {
@@ -40,9 +42,10 @@ interface Props {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onToggle: (task: Task) => void;
+  onToggleInProgress?: (task: Task) => void;
 }
 
-export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle }: Props) {
+export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle, onToggleInProgress }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const statusStyle = useMemo(() => statusStyleFor(colors), [colors]);
@@ -68,9 +71,16 @@ export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle }: Pro
           <Ionicons name="time-outline" size={14} color={colors.MUTED_ON_CARD} />
           <Text style={styles.timeText}>{formatTime(task.dueDate)}</Text>
         </View>
-        <View style={[styles.badge, { backgroundColor: s.bg }]}>
+        <TouchableOpacity
+          style={[styles.badge, { backgroundColor: s.bg }]}
+          onPress={() => {
+            if (task.status === 'completed' || !onToggleInProgress) return;
+            onToggleInProgress(task);
+          }}
+          activeOpacity={task.status === 'completed' || !onToggleInProgress ? 1 : 0.7}
+        >
           <Text style={[styles.badgeText, { color: s.text }]}>{status}</Text>
-        </View>
+        </TouchableOpacity>
       </View>
       <View style={styles.cardActions}>
         <TouchableOpacity

@@ -37,7 +37,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function EditTaskScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { updateTask, deleteTask, toggleComplete, isLoading } = useTasks();
+  const { updateTask, deleteTask, toggleComplete, setInProgress, isLoading } = useTasks();
   const { fetchAll: fetchCategories } = useCategories();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -174,6 +174,27 @@ export default function EditTaskScreen() {
     }
   };
 
+  const handleSetStatus = async (next: 'pending' | 'in_progress' | 'completed') => {
+    if (!task || task.status === next) return;
+    try {
+      if (next === 'completed') {
+        if (task.status !== 'completed') {
+          await toggleComplete(task);
+          setTask({ ...task, status: 'completed' });
+        }
+        return;
+      }
+      // Switching to pending or in_progress — make sure completion is cleared first.
+      if (task.status === 'completed') {
+        await toggleComplete(task);
+      }
+      const updated = await setInProgress({ ...task, status: 'pending' }, next === 'in_progress');
+      setTask(updated);
+    } catch (e) {
+      showApiErrorAlert(e);
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -199,6 +220,8 @@ export default function EditTaskScreen() {
   }
 
   const isCompleted = task.status === 'completed';
+  const isInProgress = task.status === 'in_progress';
+  const heroLabel = isCompleted ? 'Completed' : isInProgress ? 'In Progress' : 'Active';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -232,9 +255,7 @@ export default function EditTaskScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.heroSubtitle}>
-            {isCompleted ? 'Completed' : 'Active'}
-          </Text>
+          <Text style={styles.heroSubtitle}>{heroLabel}</Text>
           <Text style={styles.heroTitle} numberOfLines={2}>
             {title.toUpperCase()}
           </Text>
@@ -331,6 +352,29 @@ export default function EditTaskScreen() {
             )}
 
             <PriorityPicker value={priority} onChange={setPriority} />
+
+            {/* Status picker */}
+            <View style={styles.statusGroup}>
+              <Text style={styles.statusGroupLabel}>Status</Text>
+              <View style={styles.statusRow}>
+                {(['pending', 'in_progress', 'completed'] as const).map((s) => {
+                  const active = task.status === s;
+                  const label = s === 'pending' ? 'To-do' : s === 'in_progress' ? 'In Progress' : 'Done';
+                  return (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.statusBtn, active && styles.statusBtnActive]}
+                      onPress={() => handleSetStatus(s)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.statusBtnText, active && styles.statusBtnTextActive]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
           </ScrollView>
 
           {/* Footer */}
@@ -669,5 +713,41 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontFamily: FontFamily.BOLD,
     color: colors.WHITE_TEXT,
     fontSize: 14,
+  },
+
+  statusGroup: {
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  statusGroupLabel: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 12,
+    color: colors.MUTED_ON_CARD,
+    marginBottom: 8,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statusBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: colors.INPUT_BG,
+    borderWidth: 1.5,
+    borderColor: colors.INPUT_BORDER,
+    alignItems: 'center',
+  },
+  statusBtnActive: {
+    backgroundColor: colors.LIME,
+    borderColor: colors.LIME,
+  },
+  statusBtnText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 13,
+    color: colors.MUTED_ON_CARD,
+  },
+  statusBtnTextActive: {
+    color: colors.DARK_TEXT,
   },
 });

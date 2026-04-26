@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 import type { Task, CreateTaskPayload, UpdateTaskPayload } from '@/types/task';
 import { normalizeTaskRaw } from './task-utils';
+import { inProgressStore } from '@/services/in-progress-store';
 
 function toYmd(input: string | undefined | null): string | null {
   if (!input) return null;
@@ -26,12 +27,14 @@ function toApiPayload(payload: CreateTaskPayload | UpdateTaskPayload) {
 export const tasksApi = {
   getAll: async (): Promise<Task[]> => {
     const { data } = await apiClient.get<any[]>('/tasks/');
-    return data.map(normalizeTaskRaw);
+    await inProgressStore.init();
+    return inProgressStore.applyOverlayList(data.map(normalizeTaskRaw));
   },
 
   getActive: async (): Promise<Task[]> => {
     const { data } = await apiClient.get<any[]>('/tasks/active/');
-    return data.map(normalizeTaskRaw);
+    await inProgressStore.init();
+    return inProgressStore.applyOverlayList(data.map(normalizeTaskRaw));
   },
 
   getCompleted: async (): Promise<Task[]> => {
@@ -41,12 +44,14 @@ export const tasksApi = {
 
   getToday: async (): Promise<Task[]> => {
     const { data } = await apiClient.get<any[]>('/tasks/today/');
-    return data.map(normalizeTaskRaw);
+    await inProgressStore.init();
+    return inProgressStore.applyOverlayList(data.map(normalizeTaskRaw));
   },
 
   getById: async (id: string): Promise<Task> => {
     const { data } = await apiClient.get(`/tasks/${id}`);
-    return normalizeTaskRaw(data);
+    await inProgressStore.init();
+    return inProgressStore.applyOverlay(normalizeTaskRaw(data));
   },
 
   create: async (payload: CreateTaskPayload): Promise<Task> => {
@@ -56,11 +61,13 @@ export const tasksApi = {
 
   update: async (id: string, payload: UpdateTaskPayload): Promise<Task> => {
     const { data } = await apiClient.put(`/tasks/${id}`, toApiPayload(payload));
-    return normalizeTaskRaw(data);
+    await inProgressStore.init();
+    return inProgressStore.applyOverlay(normalizeTaskRaw(data));
   },
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/tasks/${id}`);
+    await inProgressStore.remove(id);
   },
 
   /**
@@ -77,6 +84,18 @@ export const tasksApi = {
       due_date: toYmd(task.dueDate),
       completed,
     });
-    return normalizeTaskRaw(data);
+    if (completed) await inProgressStore.remove(task.id);
+    await inProgressStore.init();
+    return inProgressStore.applyOverlay(normalizeTaskRaw(data));
+  },
+
+  /** Mark/unmark a task as in-progress. Local-only — backend does not persist this. */
+  setInProgress: async (task: Task, inProgress: boolean): Promise<Task> => {
+    if (inProgress) {
+      await inProgressStore.add(task.id);
+      return { ...task, status: 'in_progress' };
+    }
+    await inProgressStore.remove(task.id);
+    return { ...task, status: task.status === 'completed' ? 'completed' : 'pending' };
   },
 };

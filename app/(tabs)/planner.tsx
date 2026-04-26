@@ -164,6 +164,16 @@ export default function PlannerScreen() {
     }
   };
 
+  const handleToggleInProgress = async (task: Task) => {
+    const nextInProgress = task.status !== 'in_progress';
+    try {
+      const updated = await tasksApi.setInProgress(task, nextInProgress);
+      setTasks(prev => prev.map(t => (t.id === task.id ? updated : t)));
+    } catch (e) {
+      showApiErrorAlert(e);
+    }
+  };
+
   const categoryMap = useMemo(() => {
     const m: Record<string, string> = {};
     categories.forEach(c => { m[c.id] = c.name; });
@@ -319,6 +329,7 @@ export default function PlannerScreen() {
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onToggle={handleToggle}
+                  onToggleInProgress={handleToggleInProgress}
                 />
               ))
             )}
