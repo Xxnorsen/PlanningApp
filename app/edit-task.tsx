@@ -28,7 +28,8 @@ import { tasksApi } from '@/services/api/tasks';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
 import { PriorityPicker } from '@/components/priority-picker';
 import { CategoryPicker } from '@/components/category-picker';
-import type { Task, TaskPriority } from '@/types/task';
+import { StatusPicker } from '@/components/status-picker';
+import type { Task, TaskPriority, TaskStatus } from '@/types/task';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -52,6 +53,7 @@ export default function EditTaskScreen() {
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [status, setStatus] = useState<TaskStatus>('pending');
 
   const [showPicker, setShowPicker] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
@@ -76,6 +78,7 @@ export default function EditTaskScreen() {
         setPriority(t.priority);
         setCategoryId(t.categoryId);
         setDueDate(t.dueDate ? new Date(t.dueDate.slice(0, 10) + 'T00:00:00') : null);
+        setStatus(t.status);
       } catch (e) {
         const err = toApiError(e);
         setError(err.message);
@@ -138,6 +141,7 @@ export default function EditTaskScreen() {
         priority,
         categoryId,
         dueDate: toYmd(dueDate),
+        status,
       });
       router.back();
     } catch (e) {
@@ -352,6 +356,7 @@ export default function EditTaskScreen() {
               />
             )}
 
+            <StatusPicker value={status} onChange={setStatus} />
             <PriorityPicker value={priority} onChange={setPriority} />
 
             {/* Status picker */}

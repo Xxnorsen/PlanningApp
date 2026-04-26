@@ -319,7 +319,7 @@ export default function ProgressScreen() {
                 <AchievementCard
                   icon="sunny-outline"
                   title="Early Bird"
-                  description={`${earlyBirdTasks.length} tasks completed before 9 AM`}
+                  description={`${earlyBirdTasks.length} tasks completed before 10 AM`}
                   color="#FFA502"
                 />
               )}

@@ -55,7 +55,7 @@ export const categoriesApi = {
     return categoryCustomizationsStore.applyOverlay(cat);
   },
 
-  /** DELETE /categories/{id} */
+  /** DELETE /categories/{id}/ */
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/categories/${id}`);
     await categoryCustomizationsStore.remove(id);

@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +11,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useCategories } from '@/context/category-context';
+import { useTasks } from '@/context/task-context';
 import { useTheme } from '@/context/theme-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import { CelebrationOverlay } from '@/components/task-dashboard';
@@ -42,10 +44,12 @@ const DEFAULT_FORM: FormState = { name: '', color: PALETTE[0], icon: ICONS[0] };
 
 function CategoryRow({
   category,
+  taskCount,
   onEdit,
   onDelete,
 }: {
   category: Category;
+  taskCount: number;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -58,7 +62,9 @@ function CategoryRow({
       </View>
       <View style={styles.rowInfo}>
         <Text style={styles.rowName}>{category.name}</Text>
-        <Text style={styles.rowCount}>{category.taskCount ?? 0} Events</Text>
+        <Text style={styles.rowCount}>
+          {taskCount} {taskCount === 1 ? 'Event' : 'Events'}
+        </Text>
       </View>
       <TouchableOpacity style={styles.actionBtn} onPress={onEdit} activeOpacity={0.7}>
         <Ionicons name="pencil-outline" size={17} color={colors.MUTED_ON_CARD} />
@@ -106,71 +112,108 @@ function FormModal({
     onSave({ ...form, name: form.name.trim() });
   };
 
+  // Animate preview when icon or color changes
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const prevIconRef = useRef(form.icon);
+  const prevColorRef = useRef(form.color);
+
+  useEffect(() => {
+    if (form.icon !== prevIconRef.current || form.color !== prevColorRef.current) {
+      prevIconRef.current = form.icon;
+      prevColorRef.current = form.color;
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 0.75, duration: 100, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 4, tension: 200, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [form.icon, form.color]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.sheet}>
           <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>{initial ? 'Edit Category' : 'New Category'}</Text>
 
-          {/* Live preview */}
-          <View style={[styles.preview, { backgroundColor: form.color + '22' }]}>
-            <Ionicons name={form.icon as any} size={32} color={form.color} />
-          </View>
+          {/* ↓ ScrollView makes the sheet scrollable when the keyboard is open */}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.sheetScroll}
+          >
+            <Text style={styles.sheetTitle}>{initial ? 'Edit Category' : 'New Category'}</Text>
 
-          {/* Error */}
-          {error ? (
-            <View style={styles.errorRow}>
-              <Ionicons name="alert-circle" size={15} color="#fff" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Name */}
-          <Text style={styles.label}>Name</Text>
-          <TextInput
-            style={[styles.input, !!error && !form.name.trim() && styles.inputError]}
-            value={form.name}
-            onChangeText={v => { set({ name: v }); setError(''); }}
-            placeholder="e.g. Work, Fitness…"
-            placeholderTextColor={colors.MUTED_ON_CARD}
-            autoFocus
-          />
-
-          {/* Color */}
-          <Text style={styles.label}>Color</Text>
-          <View style={styles.palette}>
-            {PALETTE.map(c => (
-              <TouchableOpacity
-                key={c}
-                style={[styles.swatch, { backgroundColor: c }, form.color === c && styles.swatchActive]}
-                onPress={() => set({ color: c })}
-                activeOpacity={0.8}
-              />
-            ))}
-          </View>
-
-          {/* Icon */}
-          <Text style={styles.label}>Icon</Text>
-          <View style={styles.iconGrid}>
-            {ICONS.map(ic => (
-              <TouchableOpacity
-                key={ic}
-                style={[styles.iconBtn, form.icon === ic && { backgroundColor: form.color + '33', borderColor: form.color }]}
-                onPress={() => set({ icon: ic })}
-                activeOpacity={0.8}
+            {/* Live preview */}
+            <View style={styles.previewWrapper}>
+              <Animated.View
+                style={[
+                  styles.preview,
+                  { backgroundColor: form.color + '22', transform: [{ scale: scaleAnim }] },
+                ]}
               >
-                <Ionicons name={ic as any} size={20} color={form.icon === ic ? form.color : colors.MUTED_ON_CARD} />
-              </TouchableOpacity>
-            ))}
-          </View>
+                <Ionicons name={form.icon as any} size={32} color={form.color} />
+              </Animated.View>
+              <Text style={[styles.previewName, { color: form.color }]} numberOfLines={1}>
+                {form.name.trim() || 'Category Name'}
+              </Text>
+            </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={submit} disabled={busy} activeOpacity={0.85}>
-            {busy ? <LoadingCat size={36} /> : <Text style={styles.saveBtnText}>{initial ? 'Save Changes' : 'Create Category'}</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
+            {/* Error */}
+            {error ? (
+              <View style={styles.errorRow}>
+                <Ionicons name="alert-circle" size={15} color="#fff" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Name */}
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              style={[styles.input, !!error && !form.name.trim() && styles.inputError]}
+              value={form.name}
+              onChangeText={v => { set({ name: v }); setError(''); }}
+              placeholder="e.g. Work, Fitness…"
+              placeholderTextColor={colors.MUTED_ON_CARD}
+              autoFocus
+            />
+
+            {/* Color */}
+            <Text style={styles.label}>Color</Text>
+            <View style={styles.palette}>
+              {PALETTE.map(c => (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.swatch, { backgroundColor: c }, form.color === c && styles.swatchActive]}
+                  onPress={() => set({ color: c })}
+                  activeOpacity={0.8}
+                />
+              ))}
+            </View>
+
+            {/* Icon */}
+            <Text style={styles.label}>Icon</Text>
+            <View style={styles.iconGrid}>
+              {ICONS.map(ic => (
+                <TouchableOpacity
+                  key={ic}
+                  style={[styles.iconBtn, form.icon === ic && { backgroundColor: form.color + '33', borderColor: form.color }]}
+                  onPress={() => set({ icon: ic })}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name={ic as any} size={20} color={form.icon === ic ? form.color : colors.MUTED_ON_CARD} />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.saveBtn} onPress={submit} disabled={busy} activeOpacity={0.85}>
+              {busy ? <LoadingCat size={36} /> : <Text style={styles.saveBtnText}>{initial ? 'Save Changes' : 'Create Category'}</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.7}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -230,8 +273,18 @@ function DeleteModal({
 export default function CategoriesScreen() {
   const router = useRouter();
   const { categories, isLoading, fetchAll, createCategory, updateCategory, deleteCategory } = useCategories();
+  const { tasks } = useTasks();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  // Count tasks per category from local task list (fallback since backend omits task_count)
+  const taskCountsByCategory = useMemo(() => {
+    const counts: Record<string, number> = {};
+    tasks.forEach((t) => {
+      if (t.categoryId) counts[t.categoryId] = (counts[t.categoryId] ?? 0) + 1;
+    });
+    return counts;
+  }, [tasks]);
 
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
@@ -248,18 +301,21 @@ export default function CategoriesScreen() {
   // Form
   const openCreate = () => { setEditing(null); setFormVisible(true); };
   const openEdit = (c: Category) => { setEditing(c); setFormVisible(true); };
-  const closeForm = () => { setFormVisible(false); setEditing(null); };
+  const closeForm = () => { setFormVisible(false); setTimeout(() => setEditing(null), 300); };
 
   const handleSave = async (form: FormState) => {
+    // Capture id immediately — closing the form nulls `editing` before the async call resolves
+    const editingId = editing?.id ?? null;
     setFormBusy(true);
     const wasEditing = !!editing;
     try {
-      if (editing) {
-        await updateCategory(editing.id, form);
+      if (editingId) {
+        await updateCategory(editingId, form);
       } else {
         await createCategory(form);
       }
       closeForm();
+      fetchAll(); // refresh list so the updated name/icon appears immediately
       // Wait for the form sheet's slide-out animation before mounting the
       // celebration Modal — react-native-web only shows one Modal at a time.
       setTimeout(() => {
@@ -333,6 +389,7 @@ export default function CategoriesScreen() {
               <CategoryRow
                 key={cat.id}
                 category={cat}
+                taskCount={cat.taskCount ?? taskCountsByCategory[cat.id] ?? 0}
                 onEdit={() => openEdit(cat)}
                 onDelete={() => openDelete(cat)}
               />
@@ -432,11 +489,23 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
 
   // Shared modal pieces
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: { backgroundColor: colors.CARD, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
+  sheet: {
+    backgroundColor: colors.CARD,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingTop: 16,
+    paddingHorizontal: 24,
+    // maxHeight keeps the sheet from filling the whole screen and allows scrolling
+    maxHeight: '90%',
+  },
+  // Content padding lives here instead of on sheet so the ScrollView can reach the bottom
+  sheetScroll: { paddingBottom: 40 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.INPUT_BORDER, alignSelf: 'center', marginBottom: 20 },
   sheetTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.DARK_TEXT, marginBottom: 16 },
 
-  preview: { width: 64, height: 64, borderRadius: 18, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  previewWrapper: { alignItems: 'center', marginBottom: 16 },
+  preview: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  previewName: { fontFamily: FontFamily.BOLD, fontSize: 15, maxWidth: 200, textAlign: 'center' },
 
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FF4757', borderRadius: 12, padding: 12, marginBottom: 12 },
   errorText: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: '#fff', flex: 1 },
