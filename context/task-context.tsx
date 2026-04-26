@@ -13,6 +13,7 @@ interface TaskContextValue {
   updateTask: (id: string, payload: UpdateTaskPayload) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
   toggleComplete: (task: Task) => Promise<Task>;
+  setInProgress: (task: Task, inProgress: boolean) => Promise<Task>;
   clearError: () => void;
 }
 
@@ -83,11 +84,24 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // In-progress is a local-only flag (see services/in-progress-store.ts).
+  // No server round-trip, so we just write to AsyncStorage and update state.
+  const setInProgress = useCallback(async (task: Task, inProgress: boolean): Promise<Task> => {
+    try {
+      const updated = await tasksApi.setInProgress(task, inProgress);
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+      return updated;
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to update task');
+      throw e;
+    }
+  }, []);
+
   const clearError = useCallback(() => setError(null), []);
 
   return (
     <TaskContext.Provider
-      value={{ tasks, isLoading, error, fetchAll, fetchActive, fetchCompleted, createTask, updateTask, deleteTask, toggleComplete, clearError }}
+      value={{ tasks, isLoading, error, fetchAll, fetchActive, fetchCompleted, createTask, updateTask, deleteTask, toggleComplete, setInProgress, clearError }}
     >
       {children}
     </TaskContext.Provider>

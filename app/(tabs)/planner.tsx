@@ -26,6 +26,7 @@ import { useCategories } from '@/context/category-context';
 import { useTheme } from '@/context/theme-context';
 import { TaskCard, taskStatusLabel } from '@/components/task-card';
 import { DeleteTaskModal } from '@/components/delete-task-modal';
+import { CelebrationOverlay } from '@/components/task-dashboard';
 
 type Filter = 'All' | 'To do' | 'Completed';
 
@@ -84,6 +85,7 @@ export default function PlannerScreen() {
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calPickedDate, setCalPickedDate] = useState<string | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Day view uses /planner/daily. The "Completed" filter is day-agnostic
@@ -159,8 +161,19 @@ export default function PlannerScreen() {
     try {
       const updated = await tasksApi.setCompleted(task, nextCompleted);
       setTasks(prev => prev.map(t => (t.id === task.id ? updated : t)));
+      if (nextCompleted) setCelebrating(true);
     } catch (e) {
       setTasks(prev => prev.map(t => (t.id === task.id ? task : t)));
+      showApiErrorAlert(e);
+    }
+  };
+
+  const handleToggleInProgress = async (task: Task) => {
+    const nextInProgress = task.status !== 'in_progress';
+    try {
+      const updated = await tasksApi.setInProgress(task, nextInProgress);
+      setTasks(prev => prev.map(t => (t.id === task.id ? updated : t)));
+    } catch (e) {
       showApiErrorAlert(e);
     }
   };
@@ -204,6 +217,7 @@ export default function PlannerScreen() {
         <View style={styles.circleLarge} />
         <View style={styles.circleMedium} />
         <View style={styles.circleDot} />
+        <View style={styles.circlePink} />
 
         <View style={styles.header}>
           <TouchableOpacity
@@ -348,6 +362,7 @@ export default function PlannerScreen() {
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onToggle={handleToggle}
+                  onToggleInProgress={handleToggleInProgress}
                 />
               ))
             )}
@@ -361,6 +376,8 @@ export default function PlannerScreen() {
         onConfirm={confirmDelete}
         taskTitle={taskToDelete?.title ?? ''}
       />
+
+      <CelebrationOverlay visible={celebrating} onDone={() => setCelebrating(false)} />
 
       {/* ── Full Calendar Modal ── */}
       <Modal visible={calendarVisible} animationType="slide" transparent onRequestClose={() => setCalendarVisible(false)}>
@@ -494,7 +511,13 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     position: 'absolute',
     width: 14, height: 14, borderRadius: 7,
     backgroundColor: colors.LIME,
-    top: 30, right: '40%',
+    top: 70, right: 24,
+  },
+  circlePink: {
+    position: 'absolute',
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: COLORS.PINK,
+    bottom: 12, right: 28, opacity: 0.45,
   },
 
   header: {

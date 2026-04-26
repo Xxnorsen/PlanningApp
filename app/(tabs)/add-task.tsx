@@ -105,6 +105,7 @@ export default function AddTaskScreen() {
           <View style={styles.circleLarge} />
           <View style={styles.circleMedium} />
           <View style={styles.circleDot} />
+          <View style={styles.circlePink} />
 
           <View style={styles.header}>
             <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
@@ -282,6 +283,12 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     width: 14, height: 14, borderRadius: 7,
     backgroundColor: colors.LIME,
     top: 40, right: '35%',
+  },
+  circlePink: {
+    position: 'absolute',
+    width: 50, height: 50, borderRadius: 25,
+    backgroundColor: COLORS.PINK,
+    bottom: 8, left: 24, opacity: 0.55,
   },
 
   header: {

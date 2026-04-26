@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
+  TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { useCategories } from '@/context/category-context';
 import { useTasks } from '@/context/task-context';
 import { useTheme } from '@/context/theme-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
+import { CelebrationOverlay } from '@/components/task-dashboard';
 import type { Category } from '@/types/category';
 
 // ─── Palette & icons ──────────────────────────────────────────────────────────
@@ -293,6 +294,8 @@ export default function CategoriesScreen() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  const [celebrating, setCelebrating] = useState<{ title: string; subtitle: string } | null>(null);
+
   useFocusEffect(useCallback(() => { fetchAll(); }, [fetchAll]));
 
   // Form
@@ -304,6 +307,7 @@ export default function CategoriesScreen() {
     // Capture id immediately — closing the form nulls `editing` before the async call resolves
     const editingId = editing?.id ?? null;
     setFormBusy(true);
+    const wasEditing = !!editing;
     try {
       if (editingId) {
         await updateCategory(editingId, form);
@@ -312,8 +316,16 @@ export default function CategoriesScreen() {
       }
       closeForm();
       fetchAll(); // refresh list so the updated name/icon appears immediately
-    } catch {
-      // error shown by context
+      // Wait for the form sheet's slide-out animation before mounting the
+      // celebration Modal — react-native-web only shows one Modal at a time.
+      setTimeout(() => {
+        setCelebrating({
+          title: 'Done!',
+          subtitle: wasEditing ? 'Category updated' : 'Category created',
+        });
+      }, 350);
+    } catch (e: any) {
+      Alert.alert('Save failed', e?.message ?? 'Could not save the category.');
     } finally {
       setFormBusy(false);
     }
@@ -341,6 +353,11 @@ export default function CategoriesScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
+        <View style={[styles.circleLarge, NO_POINTER]} />
+        <View style={[styles.circleMedium, NO_POINTER]} />
+        <View style={[styles.circleDot, NO_POINTER]} />
+        <View style={[styles.circlePink, NO_POINTER]} />
+
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={22} color={colors.WHITE_TEXT} />
         </TouchableOpacity>
@@ -397,11 +414,20 @@ export default function CategoriesScreen() {
         busy={deleteBusy}
         error={deleteError}
       />
+
+      <CelebrationOverlay
+        visible={!!celebrating}
+        onDone={() => setCelebrating(null)}
+        title={celebrating?.title}
+        subtitle={celebrating?.subtitle}
+      />
     </SafeAreaView>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
+
+const NO_POINTER = { pointerEvents: 'none' as const };
 
 type AppColors = { readonly [K in keyof typeof COLORS]: string };
 
@@ -411,10 +437,35 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
+    position: 'relative', overflow: 'hidden',
   },
-  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.WHITE_TEXT },
-  addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center' },
+  circleLarge: {
+    position: 'absolute',
+    width: 120, height: 120, borderRadius: 60,
+    backgroundColor: colors.CIRCLE_LIGHT,
+    top: -40, left: -30, opacity: 0.55,
+  },
+  circleMedium: {
+    position: 'absolute',
+    width: 70, height: 70, borderRadius: 35,
+    backgroundColor: colors.CIRCLE_LIGHTER,
+    top: -10, right: -20, opacity: 0.55,
+  },
+  circleDot: {
+    position: 'absolute',
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: colors.LIME,
+    bottom: 6, left: 70,
+  },
+  circlePink: {
+    position: 'absolute',
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: COLORS.PINK,
+    bottom: -8, right: 70, opacity: 0.5,
+  },
+  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  headerTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.WHITE_TEXT, zIndex: 1 },
+  addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 

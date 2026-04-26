@@ -1,9 +1,38 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardTypeOptions } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardTypeOptions, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
+import { useTheme } from '@/context/theme-context';
+
+// Inject a web-only style tag once so Chrome's autofill yellow/white background
+// doesn't override the themed input background. Re-injected when the theme changes
+// so the inset shadow color matches the active palette.
+function useWebAutofillStyle(bg: string, text: string) {
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const id = 'planningapp-autofill-style';
+    let el = document.getElementById(id) as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement('style');
+      el.id = id;
+      document.head.appendChild(el);
+    }
+    el.textContent = `
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover,
+      input:-webkit-autofill:focus,
+      input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 1000px ${bg} inset !important;
+        box-shadow: 0 0 0 1000px ${bg} inset !important;
+        -webkit-text-fill-color: ${text} !important;
+        caret-color: ${text} !important;
+        transition: background-color 5000s ease-in-out 0s;
+      }
+    `;
+  }, [bg, text]);
+}
 
 interface InputFieldProps {
   label: string;
@@ -28,7 +57,7 @@ export function InputField({
   iconName,
   iconFamily = 'Ionicons',
   rightIcon,
-  rightIconColor = COLORS.ICON_COLOR,
+  rightIconColor,
   onRightIconPress,
   secureText = false,
   value,
@@ -39,6 +68,10 @@ export function InputField({
   hint,
 }: InputFieldProps) {
   const hasError = !!error;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const resolvedRightIconColor = rightIconColor ?? colors.ICON_COLOR;
+  useWebAutofillStyle(colors.INPUT_BG, colors.DARK_TEXT);
 
   return (
     <View style={styles.wrapper}>
@@ -49,13 +82,13 @@ export function InputField({
             <Ionicons
               name={iconName as any}
               size={18}
-              color={hasError ? '#FF4757' : COLORS.ICON_COLOR}
+              color={hasError ? '#FF4757' : colors.ICON_COLOR}
             />
           ) : (
             <MaterialCommunityIcons
               name={iconName as any}
               size={18}
-              color={hasError ? '#FF4757' : COLORS.ICON_COLOR}
+              color={hasError ? '#FF4757' : colors.ICON_COLOR}
             />
           )}
         </View>
@@ -63,7 +96,7 @@ export function InputField({
         <TextInput
           style={styles.input}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.MUTED_ON_CARD}
+          placeholderTextColor={colors.MUTED_ON_CARD}
           secureTextEntry={secureText}
           autoCapitalize="none"
           autoCorrect={false}
@@ -79,7 +112,7 @@ export function InputField({
             disabled={!onRightIconPress}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name={rightIcon as any} size={18} color={rightIconColor} />
+            <Ionicons name={rightIcon as any} size={18} color={resolvedRightIconColor} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -91,7 +124,7 @@ export function InputField({
         </View>
       ) : hint ? (
         <View style={styles.messageRow}>
-          <Ionicons name="information-circle-outline" size={13} color={COLORS.ICON_COLOR} />
+          <Ionicons name="information-circle-outline" size={13} color={colors.ICON_COLOR} />
           <Text style={styles.hintText}>{hint}</Text>
         </View>
       ) : null}
@@ -99,13 +132,15 @@ export function InputField({
   );
 }
 
-const styles = StyleSheet.create({
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   wrapper: { marginBottom: 16 },
 
   label: {
     fontFamily: FontFamily.BOLD,
     fontSize: 13,
-    color: COLORS.ICON_COLOR,
+    color: colors.ICON_COLOR,
     marginBottom: 8,
     letterSpacing: 0.3,
   },
@@ -113,10 +148,10 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
     height: 56,
     paddingHorizontal: 16,
   },
@@ -131,7 +166,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FontFamily.REGULAR,
     fontSize: 15,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
   },
 
   messageRow: {
@@ -150,7 +185,7 @@ const styles = StyleSheet.create({
   hintText: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 12,
-    color: COLORS.ICON_COLOR,
+    color: colors.ICON_COLOR,
     flex: 1,
   },
 });

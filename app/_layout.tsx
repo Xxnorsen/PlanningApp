@@ -56,6 +56,7 @@ export default function RootLayout() {
               <Stack.Screen name="categories" options={{ headerShown: false, presentation: 'modal' }} />
               <Stack.Screen name="edit-task" options={{ headerShown: false }} />
               <Stack.Screen name="completed" options={{ headerShown: false }} />
+              <Stack.Screen name="in-progress" options={{ headerShown: false }} />
             </Stack>
             <StatusBar style="light" />
           </CategoryProvider>

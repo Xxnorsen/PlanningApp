@@ -18,8 +18,10 @@ import { InputField } from '@/components/input-field';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
+import { useTheme } from '@/context/theme-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
+import { useMemo } from 'react';
 
 const TOTAL_STEPS = 3;
 const CURRENT_STEP = 1;
@@ -45,27 +47,38 @@ function validatePassword(v: string) {
 }
 
 function RuleRow({ met, label }: { met: boolean; label: string }) {
+  const { colors } = useTheme();
   return (
     <View style={ruleStyles.row}>
       <Ionicons
         name={met ? 'checkmark-circle' : 'ellipse-outline'}
         size={14}
-        color={met ? '#4CAF50' : COLORS.MUTED_ON_CARD}
+        color={met ? '#4CAF50' : colors.MUTED_ON_CARD}
       />
-      <Text style={[ruleStyles.text, met && ruleStyles.metText]}>{label}</Text>
+      <Text
+        style={[
+          ruleStyles.text,
+          { color: colors.MUTED_ON_CARD },
+          met && ruleStyles.metText,
+        ]}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
 
 const ruleStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  text: { fontFamily: FontFamily.REGULAR, fontSize: 12, color: COLORS.MUTED_ON_CARD },
+  text: { fontFamily: FontFamily.REGULAR, fontSize: 12 },
   metText: { color: '#4CAF50' },
 });
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { register, isLoading } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -212,7 +225,7 @@ export default function RegisterScreen() {
                           styles.seg,
                           {
                             backgroundColor:
-                              i < strength ? strengthColors[strength] : COLORS.STRENGTH_EMPTY,
+                              i < strength ? strengthColors[strength] : colors.STRENGTH_EMPTY,
                           },
                         ]}
                       />
@@ -235,7 +248,7 @@ export default function RegisterScreen() {
             <View style={styles.termsRow}>
               <TouchableOpacity onPress={() => setAgreed((v) => !v)} activeOpacity={0.8}>
                 <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-                  {agreed && <Ionicons name="checkmark" size={12} color={COLORS.DARK_TEXT} />}
+                  {agreed && <Ionicons name="checkmark" size={12} color={colors.DARK_TEXT} />}
                 </View>
               </TouchableOpacity>
               <Text style={styles.termsText}>
@@ -262,7 +275,7 @@ export default function RegisterScreen() {
                 <>
                   <Text style={styles.primaryButtonText}>Continue</Text>
                   <View style={styles.arrowCircle}>
-                    <Ionicons name="arrow-forward" size={18} color={COLORS.DARK_TEXT} />
+                    <Ionicons name="arrow-forward" size={18} color={colors.DARK_TEXT} />
                   </View>
                 </>
               )}
@@ -281,15 +294,17 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
   flex: { flex: 1 },
-  scroll: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+  scroll: { flex: 1, backgroundColor: colors.BACKGROUND },
   scrollContent: { flexGrow: 1 },
 
   card: {
     flex: 1,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -28,
@@ -302,7 +317,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BORDER,
     alignSelf: 'center',
     marginBottom: 24,
   },
@@ -314,20 +329,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   dots: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  dotActive: { width: 24, height: 8, borderRadius: 4, backgroundColor: COLORS.BACKGROUND },
-  dotInactive: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.INPUT_BORDER },
-  stepText: { fontFamily: FontFamily.REGULAR, fontSize: 12, color: COLORS.MUTED_ON_CARD },
+  dotActive: { width: 24, height: 8, borderRadius: 4, backgroundColor: colors.ACCENT },
+  dotInactive: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.INPUT_BORDER },
+  stepText: { fontFamily: FontFamily.REGULAR, fontSize: 12, color: colors.MUTED_ON_CARD },
 
   cardTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 24,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     marginBottom: 4,
   },
   cardSubtitle: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginBottom: 20,
   },
 
@@ -343,13 +358,13 @@ const styles = StyleSheet.create({
   errorBannerText: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: '#fff', flex: 1 },
 
   rulesPanel: {
-    backgroundColor: COLORS.INPUT_BG,
+    backgroundColor: colors.INPUT_BG,
     borderRadius: 14,
     padding: 14,
     marginTop: -8,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
   },
   strengthRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   strengthBar: { flex: 1, flexDirection: 'row', gap: 4 },
@@ -362,31 +377,31 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: COLORS.INPUT_BORDER,
+    borderColor: colors.INPUT_BORDER,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
   },
-  checkboxChecked: { backgroundColor: COLORS.LIME, borderColor: COLORS.LIME },
+  checkboxChecked: { backgroundColor: colors.LIME, borderColor: colors.LIME },
   termsText: {
     flex: 1,
     fontFamily: FontFamily.REGULAR,
     fontSize: 13,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     lineHeight: 20,
   },
-  termsLink: { fontFamily: FontFamily.BOLD, color: COLORS.BACKGROUND },
+  termsLink: { fontFamily: FontFamily.BOLD, color: colors.ACCENT },
 
   primaryButton: {
     height: 56,
     borderRadius: 30,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     marginBottom: 28,
-    shadowColor: COLORS.BACKGROUND,
+    shadowColor: colors.BACKGROUND,
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -396,7 +411,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 17,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     letterSpacing: 0.5,
   },
   arrowCircle: {
@@ -409,6 +424,6 @@ const styles = StyleSheet.create({
   },
 
   bottomRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  bottomMuted: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD },
-  bottomLink: { fontFamily: FontFamily.BOLD, fontSize: 14, color: COLORS.BACKGROUND },
+  bottomMuted: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: colors.MUTED_ON_CARD },
+  bottomLink: { fontFamily: FontFamily.BOLD, fontSize: 14, color: colors.ACCENT },
 });

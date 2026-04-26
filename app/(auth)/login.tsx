@@ -20,8 +20,10 @@ import { InputField } from '@/components/input-field';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
+import { useTheme } from '@/context/theme-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import { showApiErrorAlert, toApiError } from '@/services/api/errors';
+import { useMemo } from 'react';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,6 +42,8 @@ function validatePassword(v: string) {
 export default function LoginScreen() {
   const router = useRouter();
   const { login, isLoading } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -163,7 +167,7 @@ export default function LoginScreen() {
                 <>
                   <Text style={styles.primaryButtonText}>Get started</Text>
                   <View style={styles.arrowCircle}>
-                    <Ionicons name="arrow-forward" size={18} color={COLORS.DARK_TEXT} />
+                    <Ionicons name="arrow-forward" size={18} color={colors.DARK_TEXT} />
                   </View>
                 </>
               )}
@@ -182,10 +186,12 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.BACKGROUND },
   flex: { flex: 1 },
-  scroll: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+  scroll: { flex: 1, backgroundColor: colors.BACKGROUND },
   scrollContent: { flexGrow: 1 },
 
   headerWrapper: { position: 'relative' },
@@ -201,7 +207,7 @@ const styles = StyleSheet.create({
 
   card: {
     flex: 1,
-    backgroundColor: COLORS.CARD,
+    backgroundColor: colors.CARD,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -28,
@@ -215,21 +221,21 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.INPUT_BORDER,
+    backgroundColor: colors.INPUT_BORDER,
     alignSelf: 'center',
     marginBottom: 24,
   },
   cardTitle: {
     fontFamily: FontFamily.BOLD,
     fontSize: 28,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     marginBottom: 4,
     letterSpacing: 0.5,
   },
   cardSubtitle: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 14,
-    color: COLORS.MUTED_ON_CARD,
+    color: colors.MUTED_ON_CARD,
     marginBottom: 20,
   },
 
@@ -245,18 +251,18 @@ const styles = StyleSheet.create({
   errorBannerText: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: '#fff', flex: 1 },
 
   forgotRow: { alignItems: 'flex-end', marginTop: -4, marginBottom: 28 },
-  forgotText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: COLORS.BACKGROUND },
+  forgotText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT },
 
   primaryButton: {
     height: 56,
     borderRadius: 30,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     marginBottom: 36,
-    shadowColor: COLORS.BACKGROUND,
+    shadowColor: colors.BACKGROUND,
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -266,7 +272,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontFamily: FontFamily.BOLD,
     fontSize: 17,
-    color: COLORS.DARK_TEXT,
+    color: colors.DARK_TEXT,
     letterSpacing: 0.5,
   },
   arrowCircle: {
@@ -279,6 +285,6 @@ const styles = StyleSheet.create({
   },
 
   bottomRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  bottomMuted: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: COLORS.MUTED_ON_CARD },
-  bottomLink: { fontFamily: FontFamily.BOLD, fontSize: 14, color: COLORS.BACKGROUND },
+  bottomMuted: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: colors.MUTED_ON_CARD },
+  bottomLink: { fontFamily: FontFamily.BOLD, fontSize: 14, color: colors.ACCENT },
 });

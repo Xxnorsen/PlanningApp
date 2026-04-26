@@ -18,14 +18,16 @@ const priorityIcon: Record<TaskPriority, { icon: IoniconName; bg: string; color:
 type AppColors = { readonly [K in keyof typeof COLORS]: string };
 
 const statusStyleFor = (colors: AppColors) => ({
-  Done:    { bg: '#E8F9EE', text: '#2ED573' },
-  'To-do': { bg: colors.INPUT_BG, text: colors.ACCENT },
+  Done:          { bg: '#E8F9EE', text: '#2ED573' },
+  'In Progress': { bg: '#FFF4E5', text: '#FFA502' },
+  'To-do':       { bg: colors.INPUT_BG, text: colors.ACCENT },
 });
 
-export type TaskStatusLabel = 'Done' | 'To-do';
+export type TaskStatusLabel = 'Done' | 'In Progress' | 'To-do';
 
 export function taskStatusLabel(t: Task): TaskStatusLabel {
   if (t.status === 'completed') return 'Done';
+  if (t.status === 'in_progress') return 'In Progress';
   return 'To-do';
 }
 
@@ -40,9 +42,10 @@ interface Props {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onToggle: (task: Task) => void;
+  onToggleInProgress?: (task: Task) => void;
 }
 
-export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle }: Props) {
+export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle, onToggleInProgress }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const statusStyle = useMemo(() => statusStyleFor(colors), [colors]);
@@ -68,9 +71,16 @@ export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle }: Pro
           <Ionicons name="time-outline" size={14} color={colors.MUTED_ON_CARD} />
           <Text style={styles.timeText}>{formatTime(task.dueDate)}</Text>
         </View>
-        <View style={[styles.badge, { backgroundColor: s.bg }]}>
+        <TouchableOpacity
+          style={[styles.badge, { backgroundColor: s.bg }]}
+          onPress={() => {
+            if (task.status === 'completed' || !onToggleInProgress) return;
+            onToggleInProgress(task);
+          }}
+          activeOpacity={task.status === 'completed' || !onToggleInProgress ? 1 : 0.7}
+        >
           <Text style={[styles.badgeText, { color: s.text }]}>{status}</Text>
-        </View>
+        </TouchableOpacity>
       </View>
       <View style={styles.cardActions}>
         <TouchableOpacity
@@ -84,6 +94,31 @@ export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle }: Pro
             color={COLORS.DARK_TEXT}
           />
         </TouchableOpacity>
+        {task.status !== 'completed' && onToggleInProgress && (
+          <TouchableOpacity
+            style={[
+              styles.inProgressBtn,
+              task.status === 'in_progress' && styles.inProgressBtnActive,
+            ]}
+            onPress={() => onToggleInProgress(task)}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name={task.status === 'in_progress' ? 'pause' : 'play'}
+              size={14}
+              color={task.status === 'in_progress' ? COLORS.DARK_TEXT : '#FFA502'}
+            />
+            <Text
+              style={[
+                styles.inProgressBtnText,
+                task.status === 'in_progress' && styles.inProgressBtnTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              {task.status === 'in_progress' ? 'Stop' : 'Start'}
+            </Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={styles.editBtn}
           onPress={() => onEdit(task.id)}
@@ -169,6 +204,29 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.LIME,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  inProgressBtn: {
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFF4E5',
+    borderWidth: 1.5,
+    borderColor: '#FFA502',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  inProgressBtnActive: {
+    backgroundColor: '#FFA502',
+    borderColor: '#FFA502',
+  },
+  inProgressBtnText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 12,
+    color: '#FFA502',
+  },
+  inProgressBtnTextActive: {
+    color: colors.DARK_TEXT,
   },
   editBtn: {
     flex: 1,

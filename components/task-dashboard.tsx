@@ -24,6 +24,7 @@ import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
 import { useTheme } from '@/context/theme-context';
 import { progressApi, type ProgressData } from '@/services/api/progress';
+import { plannerApi } from '@/services/api/planner';
 import { showApiErrorAlert } from '@/services/api/errors';
 import type { Task, TaskPriority } from '@/types/task';
 
@@ -70,7 +71,12 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
 
 const CONFETTI_COLORS = ['#C8FF3E', '#FF4757', '#FFA502', '#2ED573', '#FF9BCC', '#1E90FF', '#6C5CE7'];
 
-const CelebrationOverlay: React.FC<{ visible: boolean; onDone: () => void }> = ({ visible, onDone }) => {
+export const CelebrationOverlay: React.FC<{
+  visible: boolean;
+  onDone: () => void;
+  title?: string;
+  subtitle?: string;
+}> = ({ visible, onDone, title = 'Well Done!', subtitle = 'Event marked as complete' }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const scale = useRef(new Animated.Value(0)).current;
@@ -130,8 +136,8 @@ const CelebrationOverlay: React.FC<{ visible: boolean; onDone: () => void }> = (
             <View style={styles.celebCheck}>
               <Ionicons name="checkmark" size={36} color="#fff" />
             </View>
-            <Text style={styles.celebTitle}>Well Done!</Text>
-            <Text style={styles.celebSub}>Event marked as complete</Text>
+            <Text style={styles.celebTitle}>{title}</Text>
+            <Text style={styles.celebSub}>{subtitle}</Text>
           </Animated.View>
         </View>
       </Animated.View>
@@ -144,14 +150,18 @@ interface InProgressCardProps {
   task: Task;
   categoryName?: string;
   onPress: () => void;
-  onToggleDone: () => void;
+  onAction: () => void;
+  actionLabel?: string;
+  actionIcon?: IoniconName;
 }
 
 const InProgressCard: React.FC<InProgressCardProps> = ({
   task,
   categoryName,
   onPress,
-  onToggleDone,
+  onAction,
+  actionLabel = 'Mark done',
+  actionIcon = 'checkmark',
 }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -174,12 +184,12 @@ const InProgressCard: React.FC<InProgressCardProps> = ({
 
       <TouchableOpacity
         style={styles.doneBtn}
-        onPress={onToggleDone}
+        onPress={onAction}
         activeOpacity={0.85}
         hitSlop={6}
       >
-        <Ionicons name="checkmark" size={16} color={colors.DARK_TEXT} />
-        <Text style={styles.doneBtnText}>Mark done</Text>
+        <Ionicons name={actionIcon} size={16} color={colors.DARK_TEXT} />
+        <Text style={styles.doneBtnText}>{actionLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -228,7 +238,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, icon, taskCount,
 const TaskDashboard: React.FC = () => {
   const router = useRouter();
   const { user, logout, sessionSticker, rotateSticker } = useAuth();
-  const { tasks, fetchAll, toggleComplete } = useTasks();
+  const { tasks, fetchAll, toggleComplete, setInProgress } = useTasks();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -250,6 +260,14 @@ const TaskDashboard: React.FC = () => {
     }
   };
 
+  const handleStartInProgress = async (task: Task) => {
+    try {
+      await setInProgress(task, true);
+    } catch (e) {
+      showApiErrorAlert(e);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -260,6 +278,7 @@ const TaskDashboard: React.FC = () => {
   };
 
   const [progress, setProgress] = useState<ProgressData | null>(null);
+  const [todayTotals, setTodayTotals] = useState<{ completed: number; pending: number; total: number }>({ completed: 0, pending: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
@@ -272,12 +291,21 @@ const TaskDashboard: React.FC = () => {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       try {
-        const [, , p] = await Promise.all([
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayIso = `${yyyy}-${mm}-${dd}`;
+        const [, , p, todayPlan] = await Promise.all([
           fetchAll().catch(() => {}),
           fetchCategories().catch(() => {}),
           progressApi.get().catch(() => null),
+          plannerApi.getDaily(todayIso).catch(() => ({ date: todayIso, tasks: [] })),
         ]);
         setProgress(p);
+        const completed = todayPlan.tasks.filter((t) => t.status === 'completed').length;
+        const total = todayPlan.tasks.length;
+        setTodayTotals({ completed, pending: total - completed, total });
         if (isRefresh) {
           await rotateSticker().catch(() => {});
         }
@@ -303,7 +331,12 @@ const TaskDashboard: React.FC = () => {
   }, [headerOpacity, headerScale]);
 
   const inProgressTasks = useMemo(
-    () => tasks.filter((t) => t.status !== 'completed').slice(0, 6),
+    () => tasks.filter((t) => t.status === 'in_progress').slice(0, 6),
+    [tasks],
+  );
+
+  const upcomingTasks = useMemo(
+    () => tasks.filter((t) => t.status === 'pending').slice(0, 6),
     [tasks],
   );
 
@@ -328,8 +361,10 @@ const TaskDashboard: React.FC = () => {
     return counts;
   }, [tasks]);
 
-  const completionRate = progress?.completionRate ?? 0;
-  const almostDone = completionRate >= 70;
+  const completionRate = todayTotals.total > 0
+    ? Math.round((todayTotals.completed / todayTotals.total) * 100)
+    : (progress?.completionRate ?? 0);
+  const almostDone = todayTotals.total > 0 && completionRate >= 70;
 
   const userName = (user?.name ?? 'USER').toUpperCase();
   const firstLetter = (user?.name?.[0] ?? 'U').toUpperCase();
@@ -363,6 +398,7 @@ const TaskDashboard: React.FC = () => {
           <View style={styles.circleLarge} />
           <View style={styles.circleMedium} />
           <View style={styles.circleDot} />
+          <View style={styles.circlePink} />
 
           <View style={styles.topHeader}>
             <View style={styles.avatarRow}>
@@ -403,11 +439,11 @@ const TaskDashboard: React.FC = () => {
             <View style={styles.todayLeft}>
               <Text style={styles.todaySubtitle}>Your Today is</Text>
               <Text style={styles.todayTitle}>
-                {progress
-                  ? almostDone
+                {todayTotals.total === 0
+                  ? 'Nothing scheduled'
+                  : almostDone
                     ? 'Almost Done!'
-                    : `${progress.pending} To Do`
-                  : 'Getting Started!'}
+                    : `${todayTotals.pending} To Do`}
               </Text>
               <TouchableOpacity
                 style={styles.viewTasksBtn}
@@ -430,20 +466,59 @@ const TaskDashboard: React.FC = () => {
           <Image source={stickerSource} style={styles.sessionSticker} resizeMode="contain" />
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Upcoming Events</Text>
-            <View style={styles.sectionBadge}>
-              <Text style={styles.sectionBadgeText}>{inProgressTasks.length}</Text>
+            <Text style={styles.sectionTitle}>In Progress</Text>
+            <View style={[styles.sectionBadge, { backgroundColor: '#FFF4E5' }]}>
+              <Text style={[styles.sectionBadgeText, { color: '#FFA502' }]}>{inProgressTasks.length}</Text>
             </View>
+            <TouchableOpacity
+              onPress={() => router.push('/in-progress')}
+              activeOpacity={0.7}
+              style={{ marginLeft: 'auto' }}
+            >
+              <Text style={{ fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT }}>
+                View all
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {inProgressTasks.length === 0 ? (
+            <View style={styles.emptyInline}>
+              <Ionicons name="hourglass-outline" size={32} color={colors.INPUT_BORDER} />
+              <Text style={styles.emptyInlineText}>Nothing in progress yet.</Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.inProgressScroll}
+            >
+              {inProgressTasks.map((task) => (
+                <InProgressCard
+                  key={task.id}
+                  task={task}
+                  categoryName={task.categoryId ? categoryMap[task.categoryId] : undefined}
+                  onPress={() => router.push(`/edit-task?id=${task.id}`)}
+                  onAction={() => handleToggleDone(task)}
+                />
+              ))}
+            </ScrollView>
+          )}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Upcoming Events</Text>
+            <View style={styles.sectionBadge}>
+              <Text style={styles.sectionBadgeText}>{upcomingTasks.length}</Text>
+            </View>
+          </View>
+
+          {upcomingTasks.length === 0 ? (
             <View style={styles.emptyInline}>
               <Ionicons
                 name="checkmark-done-circle-outline"
                 size={32}
                 color={colors.INPUT_BORDER}
               />
-              <Text style={styles.emptyInlineText}>Nothing in progress.</Text>
+              <Text style={styles.emptyInlineText}>Nothing on deck.</Text>
               <TouchableOpacity
                 style={styles.emptyInlineBtn}
                 onPress={() => router.push('/(tabs)/add-task')}
@@ -459,13 +534,15 @@ const TaskDashboard: React.FC = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.inProgressScroll}
             >
-              {inProgressTasks.map((task) => (
+              {upcomingTasks.map((task) => (
                 <InProgressCard
                   key={task.id}
                   task={task}
                   categoryName={task.categoryId ? categoryMap[task.categoryId] : undefined}
                   onPress={() => router.push(`/edit-task?id=${task.id}`)}
-                  onToggleDone={() => handleToggleDone(task)}
+                  onAction={() => handleStartInProgress(task)}
+                  actionLabel="Start"
+                  actionIcon="play"
                 />
               ))}
             </ScrollView>
@@ -596,6 +673,16 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.LIME,
     top: 40,
     right: width * 0.3,
+  },
+  circlePink: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.PINK,
+    bottom: 12,
+    left: 24,
+    opacity: 0.55,
   },
 
   topHeader: {
@@ -885,9 +972,10 @@ taskGroupInfo: { flex: 1 },
   },
   celebCenter: { alignItems: 'center', justifyContent: 'center' },
   celebCard: {
-    backgroundColor: '#fff', borderRadius: 28,
+    backgroundColor: colors.CARD, borderRadius: 28,
     paddingHorizontal: 40, paddingVertical: 32,
     alignItems: 'center', gap: 8,
+    borderWidth: 1, borderColor: colors.INPUT_BORDER,
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
     elevation: 12,
   },

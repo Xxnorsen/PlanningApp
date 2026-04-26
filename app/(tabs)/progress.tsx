@@ -72,6 +72,7 @@ export default function ProgressScreen() {
   const [selectedTab, setSelectedTab] = useState<ProgressTab>('Weekly');
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [todayTotals, setTodayTotals] = useState<{ completed: number; total: number }>({ completed: 0, total: 0 });
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -122,6 +123,10 @@ export default function ProgressScreen() {
 
     setProgress(p);
     setTasks(Array.from(taskMap.values()));
+    setTodayTotals({
+      completed: todayPlan.tasks.filter(t => t.status === 'completed').length,
+      total: todayPlan.tasks.length,
+    });
     setCategories(c);
 
     if (isRefresh) {
@@ -145,8 +150,13 @@ export default function ProgressScreen() {
     ]).start();
   }, [headerOpacity, headerScale]);
 
-  const completionRate = progress?.completionRate ?? 65;
-  const almostDone = completionRate >= 70;
+  // Today's completion rate, computed from today's planner data so the circle
+  // matches what the chart shows. Falls back to the backend's all-time rate
+  // only when there are no scheduled tasks today.
+  const completionRate = todayTotals.total > 0
+    ? Math.round((todayTotals.completed / todayTotals.total) * 100)
+    : (progress?.completionRate ?? 0);
+  const almostDone = todayTotals.total > 0 && completionRate >= 70;
 
   // Check for Early Bird achievement (3 tasks completed before 10 AM)
   const earlyBirdTasks = tasks.filter(task => {
@@ -207,6 +217,7 @@ export default function ProgressScreen() {
           <View style={styles.circleLarge} />
           <View style={styles.circleMedium} />
           <View style={styles.circleDot} />
+          <View style={styles.circlePink} />
 
           <View style={styles.topHeader}>
             <View style={styles.avatarRow}>
@@ -243,9 +254,13 @@ export default function ProgressScreen() {
             ]}
           >
             <View style={styles.todayLeft}>
-              <Text style={styles.todaySubtitle}>Your Progress is</Text>
+              <Text style={styles.todaySubtitle}>Today&apos;s Progress</Text>
               <Text style={styles.todayTitle}>
-                {almostDone ? 'Almost Done!' : `${completionRate}% Complete`}
+                {todayTotals.total === 0
+                  ? 'No events today'
+                  : almostDone
+                    ? 'Almost Done!'
+                    : `${completionRate}% Complete`}
               </Text>
               <TouchableOpacity
                 style={styles.viewTasksBtn}
@@ -375,6 +390,12 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     width: 14, height: 14, borderRadius: 7,
     backgroundColor: colors.LIME,
     top: 40, right: width * 0.3,
+  },
+  circlePink: {
+    position: 'absolute',
+    width: 50, height: 50, borderRadius: 25,
+    backgroundColor: COLORS.PINK,
+    bottom: 12, left: 24, opacity: 0.55,
   },
 
   topHeader: {
