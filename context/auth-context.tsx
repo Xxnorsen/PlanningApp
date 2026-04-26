@@ -111,6 +111,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateUser = useCallback(async (updates: Partial<Pick<User, 'name' | 'avatarUri'>>) => {
+    // Persist `name` to the backend so it survives sign-out / re-login.
+    // `avatarUri` is a local file URI — stays in AsyncStorage only.
+    if (updates.name !== undefined) {
+      try {
+        await authApi.updateProfile({ name: updates.name });
+      } catch (e: any) {
+        setError(e?.message ?? 'Failed to update profile');
+        throw e;
+      }
+    }
     setUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...updates };

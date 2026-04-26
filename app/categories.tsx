@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
+  TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { FontFamily } from '@/constants/fonts';
 import { useCategories } from '@/context/category-context';
 import { useTheme } from '@/context/theme-context';
 import { LoadingCat } from '@/components/ui/loading-cat';
+import { CelebrationOverlay } from '@/components/task-dashboard';
 import type { Category } from '@/types/category';
 
 // ─── Palette & icons ──────────────────────────────────────────────────────────
@@ -240,6 +241,8 @@ export default function CategoriesScreen() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  const [celebrating, setCelebrating] = useState<{ title: string; subtitle: string } | null>(null);
+
   useFocusEffect(useCallback(() => { fetchAll(); }, [fetchAll]));
 
   // Form
@@ -249,6 +252,7 @@ export default function CategoriesScreen() {
 
   const handleSave = async (form: FormState) => {
     setFormBusy(true);
+    const wasEditing = !!editing;
     try {
       if (editing) {
         await updateCategory(editing.id, form);
@@ -256,8 +260,16 @@ export default function CategoriesScreen() {
         await createCategory(form);
       }
       closeForm();
-    } catch {
-      // error shown by context
+      // Wait for the form sheet's slide-out animation before mounting the
+      // celebration Modal — react-native-web only shows one Modal at a time.
+      setTimeout(() => {
+        setCelebrating({
+          title: 'Done!',
+          subtitle: wasEditing ? 'Category updated' : 'Category created',
+        });
+      }, 350);
+    } catch (e: any) {
+      Alert.alert('Save failed', e?.message ?? 'Could not save the category.');
     } finally {
       setFormBusy(false);
     }
@@ -339,6 +351,13 @@ export default function CategoriesScreen() {
         onCancel={closeDelete}
         busy={deleteBusy}
         error={deleteError}
+      />
+
+      <CelebrationOverlay
+        visible={!!celebrating}
+        onDone={() => setCelebrating(null)}
+        title={celebrating?.title}
+        subtitle={celebrating?.subtitle}
       />
     </SafeAreaView>
   );

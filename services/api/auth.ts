@@ -67,6 +67,15 @@ export const authApi = {
     return normalizeUser(data);
   },
 
+  /** PUT /auth/me — persist profile changes (currently only `name`) */
+  updateProfile: async (updates: { name?: string }): Promise<User> => {
+    const { data } = await apiClient.put<RawUser>('/auth/me', {
+      name: updates.name,
+      full_name: updates.name,
+    });
+    return normalizeUser(data);
+  },
+
   logout: async (): Promise<void> => {
     // Stateless JWT — nothing to call on server
   },

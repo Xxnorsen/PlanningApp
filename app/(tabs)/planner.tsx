@@ -25,6 +25,7 @@ import { useCategories } from '@/context/category-context';
 import { useTheme } from '@/context/theme-context';
 import { TaskCard, taskStatusLabel } from '@/components/task-card';
 import { DeleteTaskModal } from '@/components/delete-task-modal';
+import { CelebrationOverlay } from '@/components/task-dashboard';
 
 type Filter = 'All' | 'To do' | 'In Progress' | 'Completed';
 
@@ -83,6 +84,7 @@ export default function PlannerScreen() {
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calPickedDate, setCalPickedDate] = useState<string | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
   
   
   // Day view uses /planner/daily. The "Completed" filter is day-agnostic
@@ -158,6 +160,7 @@ export default function PlannerScreen() {
     try {
       const updated = await tasksApi.setCompleted(task, nextCompleted);
       setTasks(prev => prev.map(t => (t.id === task.id ? updated : t)));
+      if (nextCompleted) setCelebrating(true);
     } catch (e) {
       setTasks(prev => prev.map(t => (t.id === task.id ? task : t)));
       showApiErrorAlert(e);
@@ -343,6 +346,8 @@ export default function PlannerScreen() {
         onConfirm={confirmDelete}
         taskTitle={taskToDelete?.title ?? ''}
       />
+
+      <CelebrationOverlay visible={celebrating} onDone={() => setCelebrating(false)} />
 
       {/* ── Full Calendar Modal ── */}
       <Modal visible={calendarVisible} animationType="slide" transparent onRequestClose={() => setCalendarVisible(false)}>

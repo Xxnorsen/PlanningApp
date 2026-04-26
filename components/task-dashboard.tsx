@@ -71,7 +71,12 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
 
 const CONFETTI_COLORS = ['#C8FF3E', '#FF4757', '#FFA502', '#2ED573', '#FF9BCC', '#1E90FF', '#6C5CE7'];
 
-const CelebrationOverlay: React.FC<{ visible: boolean; onDone: () => void }> = ({ visible, onDone }) => {
+export const CelebrationOverlay: React.FC<{
+  visible: boolean;
+  onDone: () => void;
+  title?: string;
+  subtitle?: string;
+}> = ({ visible, onDone, title = 'Well Done!', subtitle = 'Event marked as complete' }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const scale = useRef(new Animated.Value(0)).current;
@@ -131,8 +136,8 @@ const CelebrationOverlay: React.FC<{ visible: boolean; onDone: () => void }> = (
             <View style={styles.celebCheck}>
               <Ionicons name="checkmark" size={36} color="#fff" />
             </View>
-            <Text style={styles.celebTitle}>Well Done!</Text>
-            <Text style={styles.celebSub}>Event marked as complete</Text>
+            <Text style={styles.celebTitle}>{title}</Text>
+            <Text style={styles.celebSub}>{subtitle}</Text>
           </Animated.View>
         </View>
       </Animated.View>
@@ -956,9 +961,10 @@ taskGroupInfo: { flex: 1 },
   },
   celebCenter: { alignItems: 'center', justifyContent: 'center' },
   celebCard: {
-    backgroundColor: '#fff', borderRadius: 28,
+    backgroundColor: colors.CARD, borderRadius: 28,
     paddingHorizontal: 40, paddingVertical: 32,
     alignItems: 'center', gap: 8,
+    borderWidth: 1, borderColor: colors.INPUT_BORDER,
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
     elevation: 12,
   },
@@ -968,8 +974,8 @@ taskGroupInfo: { flex: 1 },
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 8,
   },
-  celebTitle: { fontFamily: FontFamily.BOLD, fontSize: 22, color: '#1A1A2E' },
-  celebSub: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: '#6B6B7B' },
+  celebTitle: { fontFamily: FontFamily.BOLD, fontSize: 22, color: colors.DARK_TEXT },
+  celebSub: { fontFamily: FontFamily.REGULAR, fontSize: 14, color: colors.MUTED_ON_CARD },
 });
 
 export default TaskDashboard;

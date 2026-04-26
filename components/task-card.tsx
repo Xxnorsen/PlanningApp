@@ -94,6 +94,31 @@ export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle, onTog
             color={COLORS.DARK_TEXT}
           />
         </TouchableOpacity>
+        {task.status !== 'completed' && onToggleInProgress && (
+          <TouchableOpacity
+            style={[
+              styles.inProgressBtn,
+              task.status === 'in_progress' && styles.inProgressBtnActive,
+            ]}
+            onPress={() => onToggleInProgress(task)}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name={task.status === 'in_progress' ? 'pause' : 'play'}
+              size={14}
+              color={task.status === 'in_progress' ? COLORS.DARK_TEXT : '#FFA502'}
+            />
+            <Text
+              style={[
+                styles.inProgressBtnText,
+                task.status === 'in_progress' && styles.inProgressBtnTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              {task.status === 'in_progress' ? 'Stop' : 'Start'}
+            </Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={styles.editBtn}
           onPress={() => onEdit(task.id)}
@@ -179,6 +204,29 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.LIME,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  inProgressBtn: {
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFF4E5',
+    borderWidth: 1.5,
+    borderColor: '#FFA502',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  inProgressBtnActive: {
+    backgroundColor: '#FFA502',
+    borderColor: '#FFA502',
+  },
+  inProgressBtnText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 12,
+    color: '#FFA502',
+  },
+  inProgressBtnTextActive: {
+    color: colors.DARK_TEXT,
   },
   editBtn: {
     flex: 1,
