@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 import { COLORS } from '@/constants/colors';
 
@@ -16,7 +16,8 @@ const DARK_COLORS: ColorMap = {
   ACCENT: '#4A4AE8',
   CIRCLE_LIGHT: '#2A2A6E',
   CIRCLE_LIGHTER: '#7070CC',
-  LIME: '#87bd00',
+  //LIME: '#87bd00',
+  LIME: '#6fa000',
   MINT: '#7FDCCC',
   PINK: '#FF9BCC',
   CARD: '#1C1C2E',
