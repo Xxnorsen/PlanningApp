@@ -205,6 +205,7 @@ export default function PlannerScreen() {
         <View style={styles.circleLarge} />
         <View style={styles.circleMedium} />
         <View style={styles.circleDot} />
+        <View style={styles.circlePink} />
 
         <View style={styles.header}>
           <TouchableOpacity
@@ -481,7 +482,13 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     position: 'absolute',
     width: 14, height: 14, borderRadius: 7,
     backgroundColor: colors.LIME,
-    top: 30, right: '40%',
+    top: 70, right: 24,
+  },
+  circlePink: {
+    position: 'absolute',
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: COLORS.PINK,
+    bottom: 12, right: 28, opacity: 0.45,
   },
 
   header: {

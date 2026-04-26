@@ -198,6 +198,11 @@ export default function ProfileScreen() {
 
       {/* ── Purple hero ── */}
       <View style={styles.hero}>
+        <View style={[styles.circleLarge, NO_POINTER]} />
+        <View style={[styles.circleMedium, NO_POINTER]} />
+        <View style={[styles.circleDot, NO_POINTER]} />
+        <View style={[styles.circlePink, NO_POINTER]} />
+
         <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8} style={styles.avatarWrap}>
           {user?.avatarUri ? (
             <Image source={{ uri: user.avatarUri }} style={styles.avatarImg} contentFit="cover" />
@@ -445,13 +450,39 @@ export default function ProfileScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
+const NO_POINTER = { pointerEvents: 'none' as const };
+
 type AppColors = { readonly [K in keyof typeof COLORS]: string };
 
 const makeStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.BACKGROUND },
 
-  hero: { alignItems: 'center', paddingTop: 24, paddingBottom: 36 },
-  avatarWrap: { position: 'relative', marginBottom: 12 },
+  hero: { alignItems: 'center', paddingTop: 24, paddingBottom: 36, position: 'relative', overflow: 'hidden' },
+  circleLarge: {
+    position: 'absolute',
+    width: 140, height: 140, borderRadius: 70,
+    backgroundColor: colors.CIRCLE_LIGHT,
+    top: -30, left: -40, opacity: 0.6,
+  },
+  circleMedium: {
+    position: 'absolute',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: colors.CIRCLE_LIGHTER,
+    top: 20, right: -20, opacity: 0.6,
+  },
+  circleDot: {
+    position: 'absolute',
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: colors.LIME,
+    top: 16, right: 60,
+  },
+  circlePink: {
+    position: 'absolute',
+    width: 50, height: 50, borderRadius: 25,
+    backgroundColor: COLORS.PINK,
+    bottom: 8, left: 24, opacity: 0.55,
+  },
+  avatarWrap: { position: 'relative', marginBottom: 12, zIndex: 1 },
   avatar: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center',
@@ -464,8 +495,8 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: colors.ACCENT,
   },
-  heroName: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.WHITE_TEXT, marginBottom: 4 },
-  heroEmail: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: colors.MUTED_ON_DARK },
+  heroName: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.WHITE_TEXT, marginBottom: 4, zIndex: 1 },
+  heroEmail: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: colors.MUTED_ON_DARK, zIndex: 1 },
 
   scroll: { flex: 1, backgroundColor: colors.INPUT_BG, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   content: { paddingTop: 8, paddingHorizontal: 16 },

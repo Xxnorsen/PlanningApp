@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { HeaderLottie } from '@/components/ui/header-lottie';
+import { useTheme } from '@/context/theme-context';
 
 interface AuthHeaderProps {
   title: string;
@@ -26,12 +27,15 @@ export function AuthHeader({
 }: AuthHeaderProps) {
   const insets = useSafeAreaInsets();
   const backButtonTop = insets.top + 12;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <View style={[styles.container, { height: height + insets.top }]}>
       <View style={styles.circleLarge} />
       <View style={styles.circleMedium} />
       <View style={styles.circleDotLime} />
+      <View style={styles.circlePink} />
 
       <View style={styles.lottieWrapper}>
         <HeaderLottie />
@@ -45,7 +49,7 @@ export function AuthHeader({
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <View style={styles.backCircle}>
-            <Ionicons name="arrow-back" size={20} color={COLORS.LIME} />
+            <Ionicons name="arrow-back" size={20} color={colors.LIME} />
           </View>
         </TouchableOpacity>
       )}
@@ -58,10 +62,12 @@ export function AuthHeader({
   );
 }
 
-const styles = StyleSheet.create({
+type AppColors = { readonly [K in keyof typeof COLORS]: string };
+
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     width: '100%',
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: colors.BACKGROUND,
     justifyContent: 'flex-end',
     overflow: 'hidden',
   },
@@ -71,7 +77,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: COLORS.CIRCLE_LIGHT,
+    backgroundColor: colors.CIRCLE_LIGHT,
     top: -20,
     left: -30,
     opacity: 0.8,
@@ -81,7 +87,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: COLORS.CIRCLE_LIGHTER,
+    backgroundColor: colors.CIRCLE_LIGHTER,
     top: 40,
     right: -10,
     opacity: 0.7,
@@ -91,9 +97,19 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: COLORS.LIME,
+    backgroundColor: colors.LIME,
     top: 60,
     left: width * 0.42,
+  },
+  circlePink: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.PINK,
+    bottom: 20,
+    right: 30,
+    opacity: 0.55,
   },
   lottieWrapper: {
     position: 'absolute',
@@ -126,14 +142,14 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: FontFamily.REGULAR,
     fontSize: 15,
-    color: COLORS.MUTED_ON_DARK,
+    color: colors.MUTED_ON_DARK,
     marginBottom: 4,
     letterSpacing: 0.5,
   },
   title: {
     fontFamily: FontFamily.BOLD,
     fontSize: 40,
-    color: COLORS.LIME,
+    color: colors.LIME,
     lineHeight: 46,
     textTransform: 'uppercase',
     letterSpacing: 1,

@@ -398,6 +398,7 @@ const TaskDashboard: React.FC = () => {
           <View style={styles.circleLarge} />
           <View style={styles.circleMedium} />
           <View style={styles.circleDot} />
+          <View style={styles.circlePink} />
 
           <View style={styles.topHeader}>
             <View style={styles.avatarRow}>
@@ -672,6 +673,16 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.LIME,
     top: 40,
     right: width * 0.3,
+  },
+  circlePink: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.PINK,
+    bottom: 12,
+    left: 24,
+    opacity: 0.55,
   },
 
   topHeader: {
