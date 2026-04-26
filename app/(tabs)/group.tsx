@@ -181,15 +181,21 @@ export default function ProfileScreen() {
   // ── Logout ───────────────────────────────────────────────────────────────────
 
   const handleLogout = () => {
+    const doLogout = async () => {
+      await logout();
+      router.replace('/(auth)/login');
+    };
+    // Alert.alert is a no-op on react-native-web — fall back to window.confirm
+    // so the user can actually confirm and the sign-out runs.
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Are you sure you want to sign out?')) {
+        doLogout();
+      }
+      return;
+    }
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out', style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/(auth)/login');
-        },
-      },
+      { text: 'Sign Out', style: 'destructive', onPress: doLogout },
     ]);
   };
 
