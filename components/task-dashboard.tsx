@@ -11,6 +11,7 @@ import {
   Dimensions,
   RefreshControl,
   Modal,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -283,6 +284,14 @@ const TaskDashboard: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<{
+    priority?: TaskPriority;
+    categoryId?: string;
+    dueDatePreset?: 'today' | 'this_week' | 'overdue';
+  }>({});
+
   const headerScale = useRef(new Animated.Value(0.95)).current;
   const headerOpacity = useRef(new Animated.Value(0)).current;
 
@@ -361,6 +370,49 @@ const TaskDashboard: React.FC = () => {
     return counts;
   }, [tasks]);
 
+  const activeTasks = useMemo(
+    () => tasks.filter(t => t.status !== 'completed'),
+    [tasks],
+  );
+
+  const filteredTasks = useMemo(() => {
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    const todayStr = todayDate.toISOString().slice(0, 10);
+    const weekStr = new Date(todayDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    return activeTasks.filter(task => {
+      if (searchQuery.trim()) {
+        if (!task.title.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
+      }
+      if (activeFilters.priority && task.priority !== activeFilters.priority) return false;
+      if (activeFilters.categoryId && task.categoryId !== activeFilters.categoryId) return false;
+      if (activeFilters.dueDatePreset) {
+        const due = task.dueDate?.slice(0, 10);
+        if (activeFilters.dueDatePreset === 'today' && due !== todayStr) return false;
+        if (activeFilters.dueDatePreset === 'this_week' && (!due || due < todayStr || due > weekStr)) return false;
+        if (activeFilters.dueDatePreset === 'overdue' && (!due || due >= todayStr)) return false;
+      }
+      return true;
+    });
+  }, [activeTasks, searchQuery, activeFilters]);
+
+  const isFiltering = useMemo(
+    () => searchQuery.trim().length > 0 || Object.values(activeFilters).some(v => v !== undefined),
+    [searchQuery, activeFilters],
+  );
+
+  const activeFilterCount = useMemo(
+    () => Object.values(activeFilters).filter(v => v !== undefined).length,
+    [activeFilters],
+  );
+
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setActiveFilters({});
+    setFiltersVisible(false);
+  }, []);
+
   const completionRate = todayTotals.total > 0
     ? Math.round((todayTotals.completed / todayTotals.total) * 100)
     : (progress?.completionRate ?? 0);
@@ -385,6 +437,7 @@ const TaskDashboard: React.FC = () => {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         bounces
         refreshControl={
           <RefreshControl
@@ -465,6 +518,160 @@ const TaskDashboard: React.FC = () => {
 
           <Image source={stickerSource} style={styles.sessionSticker} resizeMode="contain" />
 
+          {/* ── Search + Filter Row ── */}
+          <View style={styles.searchRow}>
+            <View style={styles.searchWrap}>
+              <Ionicons name="search" size={16} color={colors.MUTED_ON_CARD} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search tasks..."
+                placeholderTextColor={colors.MUTED_ON_CARD}
+                style={styles.searchInput}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={colors.MUTED_ON_CARD} />
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.filterToggleBtn, activeFilterCount > 0 && styles.filterToggleBtnActive]}
+              onPress={() => setFiltersVisible(v => !v)}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="options-outline"
+                size={18}
+                color={activeFilterCount > 0 ? colors.WHITE_TEXT : colors.DARK_TEXT}
+              />
+              {activeFilterCount > 0 && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Collapsible Filter Panel ── */}
+          {filtersVisible && (
+            <View style={styles.filterPanel}>
+              <Text style={styles.filterGroupLabel}>Priority</Text>
+              <View style={styles.filterChipsRow}>
+                {(['high', 'medium', 'low'] as TaskPriority[]).map(p => (
+                  <TouchableOpacity
+                    key={p}
+                    style={[styles.filterChip, activeFilters.priority === p && styles.filterChipActive]}
+                    onPress={() => setActiveFilters(f => ({ ...f, priority: f.priority === p ? undefined : p }))}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={priorityBadge[p].icon}
+                      size={13}
+                      color={activeFilters.priority === p ? colors.WHITE_TEXT : priorityBadge[p].color}
+                    />
+                    <Text style={[styles.filterChipText, activeFilters.priority === p && styles.filterChipTextActive]}>
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {categories.length > 0 && (
+                <>
+                  <Text style={styles.filterGroupLabel}>Category</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipsScrollRow}>
+                    {categories.map(cat => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[styles.filterChip, activeFilters.categoryId === cat.id && styles.filterChipActive]}
+                        onPress={() => setActiveFilters(f => ({ ...f, categoryId: f.categoryId === cat.id ? undefined : cat.id }))}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.filterChipText, activeFilters.categoryId === cat.id && styles.filterChipTextActive]}>
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+
+              <Text style={styles.filterGroupLabel}>Due Date</Text>
+              <View style={styles.filterChipsRow}>
+                {([
+                  { key: 'today', label: 'Today' },
+                  { key: 'this_week', label: 'This Week' },
+                  { key: 'overdue', label: 'Overdue' },
+                ] as const).map(({ key, label }) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.filterChip, activeFilters.dueDatePreset === key && styles.filterChipActive]}
+                    onPress={() => setActiveFilters(f => ({ ...f, dueDatePreset: f.dueDatePreset === key ? undefined : key }))}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.filterChipText, activeFilters.dueDatePreset === key && styles.filterChipTextActive]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {(activeFilterCount > 0 || searchQuery.trim().length > 0) && (
+                <TouchableOpacity style={styles.clearFiltersBtn} onPress={clearFilters} activeOpacity={0.85}>
+                  <Ionicons name="close-circle-outline" size={15} color={colors.ACCENT} />
+                  <Text style={styles.clearFiltersBtnText}>Clear Filters</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {isFiltering ? (
+            /* ── Filtered results ── */
+            filteredTasks.length === 0 ? (
+              <View style={styles.emptyInline}>
+                <Ionicons name="search-outline" size={32} color={colors.INPUT_BORDER} />
+                <Text style={styles.emptyInlineText}>No tasks match your search.</Text>
+                <TouchableOpacity style={styles.emptyInlineBtn} onPress={clearFilters} activeOpacity={0.85}>
+                  <Ionicons name="close-circle-outline" size={16} color={colors.DARK_TEXT} />
+                  <Text style={styles.emptyInlineBtnText}>Clear Filters</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.filteredList}>
+                {filteredTasks.map(task => (
+                  <TouchableOpacity
+                    key={task.id}
+                    style={styles.filteredTaskRow}
+                    onPress={() => router.push(`/edit-task?id=${task.id}`)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={[styles.categoryIconBadge, { backgroundColor: priorityBadge[task.priority].bg }]}>
+                      <Ionicons name={priorityBadge[task.priority].icon} size={14} color={priorityBadge[task.priority].color} />
+                    </View>
+                    <View style={styles.filteredTaskInfo}>
+                      <Text style={styles.filteredTaskTitle} numberOfLines={1}>{task.title}</Text>
+                      <View style={styles.filteredTaskMeta}>
+                        {task.categoryId && categoryMap[task.categoryId] ? (
+                          <Text style={styles.filteredTaskMetaText}>{categoryMap[task.categoryId]}</Text>
+                        ) : null}
+                        {task.dueDate ? (
+                          <Text style={styles.filteredTaskMetaText}>Due: {task.dueDate.slice(0, 10)}</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    <TouchableOpacity onPress={() => handleToggleDone(task)} hitSlop={8} activeOpacity={0.7}>
+                      <Ionicons name="checkmark-circle-outline" size={22} color={colors.LIME} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )
+          ) : (
+            /* ── Normal dashboard sections ── */
+            <>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>In Progress</Text>
             <View style={[styles.sectionBadge, { backgroundColor: '#FFF4E5' }]}>
@@ -616,6 +823,8 @@ const TaskDashboard: React.FC = () => {
                   </View>
                 ))}
               </View>
+            </>
+          )}
             </>
           )}
         </View>
@@ -920,6 +1129,151 @@ taskGroupInfo: { flex: 1 },
     fontSize: 12,
     color: colors.MUTED_ON_CARD,
     marginTop: 2,
+  },
+
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  searchWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.INPUT_BG,
+    borderWidth: 1,
+    borderColor: colors.INPUT_BORDER,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 14,
+    color: colors.DARK_TEXT,
+    paddingVertical: 2,
+  },
+  filterToggleBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: colors.INPUT_BG,
+    borderWidth: 1,
+    borderColor: colors.INPUT_BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterToggleBtnActive: {
+    backgroundColor: colors.ACCENT,
+    borderColor: colors.ACCENT,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.LIME,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBadgeText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 10,
+    color: colors.DARK_TEXT,
+  },
+  filterPanel: {
+    backgroundColor: colors.INPUT_BG,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.INPUT_BORDER,
+  },
+  filterGroupLabel: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 11,
+    color: colors.MUTED_ON_CARD,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 4,
+  },
+  filterChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChipsScrollRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: colors.CARD,
+    borderWidth: 1.5,
+    borderColor: colors.INPUT_BORDER,
+  },
+  filterChipActive: {
+    backgroundColor: colors.ACCENT,
+    borderColor: colors.ACCENT,
+  },
+  filterChipText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 12,
+    color: colors.MUTED_ON_CARD,
+  },
+  filterChipTextActive: { color: colors.WHITE_TEXT },
+  clearFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    paddingVertical: 4,
+  },
+  clearFiltersBtnText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 13,
+    color: colors.ACCENT,
+  },
+  filteredList: { gap: 10, marginBottom: 16 },
+  filteredTaskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.INPUT_BG,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.INPUT_BORDER,
+  },
+  filteredTaskInfo: { flex: 1 },
+  filteredTaskTitle: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 14,
+    color: colors.DARK_TEXT,
+  },
+  filteredTaskMeta: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+    flexWrap: 'wrap',
+  },
+  filteredTaskMetaText: {
+    fontFamily: FontFamily.REGULAR,
+    fontSize: 11,
+    color: colors.MUTED_ON_CARD,
   },
 
   emptyInline: {
