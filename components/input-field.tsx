@@ -94,7 +94,7 @@ export function InputField({
         </View>
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, hasError && styles.inputTextError]}
           placeholder={placeholder}
           placeholderTextColor={colors.MUTED_ON_CARD}
           secureTextEntry={secureText}
@@ -167,6 +167,9 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontFamily: FontFamily.REGULAR,
     fontSize: 15,
     color: colors.DARK_TEXT,
+  },
+  inputTextError: {
+    color: '#1A1A1A',
   },
 
   messageRow: {
