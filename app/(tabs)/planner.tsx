@@ -28,9 +28,9 @@ import { TaskCard, taskStatusLabel } from '@/components/task-card';
 import { DeleteTaskModal } from '@/components/delete-task-modal';
 import { CelebrationOverlay } from '@/components/task-dashboard';
 
-type Filter = 'All' | 'To do' | 'Completed';
+type Filter = 'All' | 'To do' | 'In Progress' | 'Completed';
 
-const FILTERS: Filter[] = ['All', 'To do', 'Completed'];
+const FILTERS: Filter[] = ['All', 'To do', 'In Progress', 'Completed'];
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -195,6 +195,7 @@ export default function PlannerScreen() {
       return true;
     }
     if (activeFilter === 'To do' && label !== 'To-do') return false;
+    if (activeFilter === 'In Progress' && label !== 'In Progress') return false;
     if (activeFilter === 'Completed' && label !== 'Done') return false;
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();

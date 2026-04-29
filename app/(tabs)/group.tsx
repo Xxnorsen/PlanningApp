@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const { isDark, toggleTheme, colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Helpers declared inside so they close over themed `styles` + `colors`
   const SectionHeader = ({ title }: { title: string }) => (
@@ -278,7 +279,7 @@ export default function ProfileScreen() {
           <SettingRow icon="log-out-outline" label="Sign Out" danger onPress={handleLogout} />
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: insets.bottom + 80 }} />
       </ScrollView>
 
       {/* ── Edit Profile Modal ── */}
