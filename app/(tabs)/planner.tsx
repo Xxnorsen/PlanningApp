@@ -29,6 +29,7 @@ import { DeleteTaskModal } from '@/components/delete-task-modal';
 import { CelebrationOverlay } from '@/components/task-dashboard';
 
 type Filter = 'All' | 'To do' | 'In Progress' | 'Completed';
+
 const FILTERS: Filter[] = ['All', 'To do', 'In Progress', 'Completed'];
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -197,13 +198,25 @@ export default function PlannerScreen() {
   }, [categories]);
 
   const filteredTasks = tasks.filter(task => {
-  if (searchQuery.trim()) {
-    const query = searchQuery.toLowerCase();
-    return task.title.toLowerCase().includes(query) ||
-           (task.description && task.description.toLowerCase().includes(query));
-  }
-  return true;
-});
+    const label = taskStatusLabel(task);
+    if (activeFilter === 'All') {
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return task.title.toLowerCase().includes(query) ||
+               (task.description && task.description.toLowerCase().includes(query));
+      }
+      return true;
+    }
+    if (activeFilter === 'To do' && label !== 'To-do') return false;
+    if (activeFilter === 'In Progress' && label !== 'In Progress') return false;
+    if (activeFilter === 'Completed' && label !== 'Done') return false;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      return task.title.toLowerCase().includes(query) ||
+             (task.description && task.description.toLowerCase().includes(query));
+    }
+    return true;
+  });
 
   const headerLabel = isSameDay(selectedDate, today)
     ? "Today's Events"

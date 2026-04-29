@@ -1,14 +1,14 @@
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useFonts } from 'expo-font';
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { Fredoka_400Regular } from '@expo-google-fonts/fredoka/400Regular';
+import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
+import { useFonts } from 'expo-font';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { AuthProvider, useAuth } from '@/context/auth-context';
-import { TaskProvider } from '@/context/task-context';
 import { CategoryProvider } from '@/context/category-context';
+import { TaskProvider } from '@/context/task-context';
 import { ThemeProvider } from '@/context/theme-context';
 
 SplashScreen.preventAutoHideAsync();

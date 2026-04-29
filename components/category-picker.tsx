@@ -246,7 +246,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   selectedOptionText: {
     fontFamily: FontFamily.BOLD,
-    color: colors.BACKGROUND,
+    color: colors.ACCENT,
   },
   emptyDropdown: {
     fontFamily: FontFamily.REGULAR,
