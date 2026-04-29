@@ -76,18 +76,23 @@ export const tasksApi = {
    * PUT is the same endpoint used for editing and is known to persist.
    */
   setCompleted: async (task: Task, completed: boolean): Promise<Task> => {
-    const { data } = await apiClient.put(`/tasks/${task.id}`, {
-      title: task.title,
-      description: task.description ?? null,
-      priority: task.priority,
-      category_id: task.categoryId ? Number(task.categoryId) : null,
-      due_date: toYmd(task.dueDate),
-      completed,
-    });
-    if (completed) await inProgressStore.remove(task.id);
-    await inProgressStore.init();
-    return inProgressStore.applyOverlay(normalizeTaskRaw(data));
-  },
+  const { data } = await apiClient.put(`/tasks/${task.id}`, {
+    title: task.title,
+    description: task.description ?? null,
+    priority: task.priority,
+    category_id: task.categoryId ? Number(task.categoryId) : null,
+    due_date: toYmd(task.dueDate),
+    completed,
+  });
+  // Always remove from in-progress store in both directions
+  await inProgressStore.remove(task.id);
+  const normalized = normalizeTaskRaw(data);
+  // When uncompleting, skip applyOverlay — we just cleared the store,
+  // don't let a stale cache race condition re-apply in_progress
+  if (!completed) return normalized;
+  await inProgressStore.init();
+  return inProgressStore.applyOverlay(normalized);
+},
 
   /** Mark/unmark a task as in-progress. Local-only — backend does not persist this. */
   setInProgress: async (task: Task, inProgress: boolean): Promise<Task> => {

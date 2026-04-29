@@ -28,9 +28,8 @@ import { TaskCard, taskStatusLabel } from '@/components/task-card';
 import { DeleteTaskModal } from '@/components/delete-task-modal';
 import { CelebrationOverlay } from '@/components/task-dashboard';
 
-type Filter = 'All' | 'To do' | 'Completed';
-
-const FILTERS: Filter[] = ['All', 'To do', 'Completed'];
+type Filter = 'All' | 'To do' | 'In Progress' | 'Completed';
+const FILTERS: Filter[] = ['All', 'To do', 'In Progress', 'Completed'];
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -91,28 +90,41 @@ export default function PlannerScreen() {
   // Day view uses /planner/daily. The "Completed" filter is day-agnostic
   // (backend has no completed_at timestamp to group by), so it pulls from
   // /tasks/completed/ directly.
-  const load = useCallback(async (date: Date, filter: Filter, isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
-    setError('');
-    try {
-      if (filter === 'Completed') {
-        setTasks(await tasksApi.getCompleted());
-      } else {
-        const plan = await plannerApi.getDaily(toIsoDate(date));
-        setTasks(plan.tasks);
-      }
-    } catch (e) {
-      const err = toApiError(e);
-      setError(err.message);
-      if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
-        showApiErrorAlert(err);
-      }
-      setTasks([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+ const load = useCallback(async (date: Date, filter: Filter, isRefresh = false) => {
+  if (isRefresh) setRefreshing(true); else setLoading(true);
+  setError('');
+  try {
+    if (filter === 'Completed') {
+      setTasks(await tasksApi.getCompleted());
+    } else if (filter === 'In Progress') {
+      const active = await tasksApi.getActive();
+      setTasks(active.filter(t => t.status === 'in_progress'));
+    } else if (filter === 'To do') {
+      const active = await tasksApi.getActive();
+      setTasks(active.filter(t => t.status === 'pending'));
+    } else {
+      // 'All' — merge active + today's planner results, deduplicate
+      const [active, plan] = await Promise.all([
+        tasksApi.getActive(),
+        plannerApi.getDaily(toIsoDate(date)),
+      ]);
+      const merged = new Map<string, Task>();
+      active.forEach(t => merged.set(t.id, t));
+      plan.tasks.forEach(t => merged.set(t.id, t));
+      setTasks(Array.from(merged.values()));
     }
-  }, []);
+  } catch (e) {
+    const err = toApiError(e);
+    setError(err.message);
+    if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
+      showApiErrorAlert(err);
+    }
+    setTasks([]);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchCategories().catch(() => {});
@@ -185,24 +197,13 @@ export default function PlannerScreen() {
   }, [categories]);
 
   const filteredTasks = tasks.filter(task => {
-    const label = taskStatusLabel(task);
-    if (activeFilter === 'All') {
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return task.title.toLowerCase().includes(query) ||
-               (task.description && task.description.toLowerCase().includes(query));
-      }
-      return true;
-    }
-    if (activeFilter === 'To do' && label !== 'To-do') return false;
-    if (activeFilter === 'Completed' && label !== 'Done') return false;
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      return task.title.toLowerCase().includes(query) ||
-             (task.description && task.description.toLowerCase().includes(query));
-    }
-    return true;
-  });
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    return task.title.toLowerCase().includes(query) ||
+           (task.description && task.description.toLowerCase().includes(query));
+  }
+  return true;
+});
 
   const headerLabel = isSameDay(selectedDate, today)
     ? "Today's Events"

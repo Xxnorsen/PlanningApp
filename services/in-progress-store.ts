@@ -44,13 +44,21 @@ export const inProgressStore = {
     notify();
   },
 
-  remove: async (id: string): Promise<void> => {
-    const c = await loadCache();
-    if (!c.has(id)) return;
-    c.delete(id);
-    await persist();
-    notify();
-  },
+ remove: async (id: string): Promise<void> => {
+  const c = await loadCache();
+  if (!c.has(id)) return;
+  c.delete(id);
+  await persist();
+  notify();
+},
+
+// Add this new method:
+clear: async (id: string): Promise<void> => {
+  const c = await loadCache();
+  c.delete(id);  // delete even if not present, force cache to reflect reality
+  await persist();
+  notify();
+},
 
   subscribe: (l: () => void): (() => void) => {
     listeners.add(l);

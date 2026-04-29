@@ -179,33 +179,41 @@ function FormModal({
               autoFocus
             />
 
-            {/* Color */}
-            <Text style={styles.label}>Color</Text>
-            <View style={styles.palette}>
-              {PALETTE.map(c => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.swatch, { backgroundColor: c }, form.color === c && styles.swatchActive]}
-                  onPress={() => set({ color: c })}
-                  activeOpacity={0.8}
-                />
-              ))}
-            </View>
+            {/* Color - only shown when creating */}
+            {!initial && (
+              <>
+                <Text style={styles.label}>Color</Text>
+                <View style={styles.palette}>
+                  {PALETTE.map(c => (
+                    <TouchableOpacity
+                      key={c}
+                      style={[styles.swatch, { backgroundColor: c }, form.color === c && styles.swatchActive]}
+                      onPress={() => set({ color: c })}
+                      activeOpacity={0.8}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
 
-            {/* Icon */}
-            <Text style={styles.label}>Icon</Text>
-            <View style={styles.iconGrid}>
-              {ICONS.map(ic => (
-                <TouchableOpacity
-                  key={ic}
-                  style={[styles.iconBtn, form.icon === ic && { backgroundColor: form.color + '33', borderColor: form.color }]}
-                  onPress={() => set({ icon: ic })}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name={ic as any} size={20} color={form.icon === ic ? form.color : colors.MUTED_ON_CARD} />
-                </TouchableOpacity>
-              ))}
-            </View>
+            {/* Icon - only shown when creating */}
+            {!initial && (
+              <>
+                <Text style={styles.label}>Icon</Text>
+                <View style={styles.iconGrid}>
+                  {ICONS.map(ic => (
+                    <TouchableOpacity
+                      key={ic}
+                      style={[styles.iconBtn, form.icon === ic && { backgroundColor: form.color + '33', borderColor: form.color }]}
+                      onPress={() => set({ icon: ic })}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name={ic as any} size={20} color={form.icon === ic ? form.color : colors.MUTED_ON_CARD} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
 
             <TouchableOpacity style={styles.saveBtn} onPress={submit} disabled={busy} activeOpacity={0.85}>
               {busy ? <LoadingCat size={36} /> : <Text style={styles.saveBtnText}>{initial ? 'Save Changes' : 'Create Category'}</Text>}

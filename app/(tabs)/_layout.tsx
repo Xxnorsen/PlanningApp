@@ -3,16 +3,19 @@ import { HapticTab } from '@/components/ui/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FloatingAddButton } from '@/components/ui/floating-add-button';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
+    <SafeAreaView style={{ flex: 1 }}>
+      <Tabs
+        screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarActiveTintColor: '#C8FF3E',
         tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
-        tabBarStyle: {
+          tabBarStyle: {
+          paddingBottom: 10,
           backgroundColor: '#4A4AE8',
           borderTopWidth: 0,
           elevation: 8,
@@ -71,6 +74,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
         }}
       />
-    </Tabs>
+      </Tabs>
+    </SafeAreaView>
   );
 }
