@@ -165,39 +165,32 @@ export default function EditTaskScreen() {
     }
   };
 
-  const handleToggleComplete = async () => {
-    if (!task) return;
-    try {
-      await toggleComplete(task);
-      setTask({
-        ...task,
-        status: task.status === 'completed' ? 'pending' : 'completed',
-      });
-    } catch (e) {
-      showApiErrorAlert(e);
-    }
-  };
+  
 
   const handleSetStatus = async (next: 'pending' | 'in_progress' | 'completed') => {
-    if (!task || task.status === next) return;
-    try {
-      if (next === 'completed') {
-        if (task.status !== 'completed') {
-          await toggleComplete(task);
-          setTask({ ...task, status: 'completed' });
-        }
-        return;
-      }
-      // Switching to pending or in_progress — make sure completion is cleared first.
-      if (task.status === 'completed') {
-        await toggleComplete(task);
-      }
-      const updated = await setInProgress({ ...task, status: 'pending' }, next === 'in_progress');
-      setTask(updated);
-    } catch (e) {
-      showApiErrorAlert(e);
+  if (!task || task.status === next) return;
+  try {
+    if (next === 'completed') {
+      await toggleComplete(task);
+      setTask(prev => prev ? { ...prev, status: 'completed' } : prev);
+      return;
     }
-  };
+
+    let base = task;
+    if (task.status === 'completed') {
+      // Direct API call so we skip applyOverlay in the context's toggleComplete
+      const uncompleted = await tasksApi.setCompleted(task, false);
+      base = uncompleted; // guaranteed 'pending', overlay was skipped
+    }
+
+    const updated = await tasksApi.setInProgress(base, next === 'in_progress');
+    setTask(updated);
+    setStatus(updated.status);
+
+  } catch (e) {
+    showApiErrorAlert(e);
+  }
+};
 
   if (loading) {
     return (
@@ -240,25 +233,7 @@ export default function EditTaskScreen() {
           <View style={styles.circleDot} />
           <View style={styles.circlePink} />
 
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={20} color={colors.DARK_TEXT} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Edit Task</Text>
-            <TouchableOpacity
-              style={[
-                styles.headerBtn,
-                isCompleted && { backgroundColor: '#2ED573' },
-              ]}
-              onPress={handleToggleComplete}
-            >
-              <Ionicons
-                name={isCompleted ? 'checkmark-done' : 'checkmark-outline'}
-                size={18}
-                color={colors.DARK_TEXT}
-              />
-            </TouchableOpacity>
-          </View>
+          
 
           <Text style={styles.heroSubtitle}>{heroLabel}</Text>
           <Text style={styles.heroTitle} numberOfLines={2}>
@@ -356,7 +331,7 @@ export default function EditTaskScreen() {
               />
             )}
 
-            <StatusPicker value={status} onChange={setStatus} />
+            
             <PriorityPicker value={priority} onChange={setPriority} />
 
             {/* Status picker */}

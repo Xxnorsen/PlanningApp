@@ -27,13 +27,14 @@ interface RawWeeklyResponse {
 export const plannerApi = {
   /** GET /planner/daily?date=YYYY-MM-DD — returns an array of TaskOut */
   getDaily: async (date: string): Promise<DayPlan> => {
-    const { data } = await apiClient.get<any[] | { tasks?: any[] }>('/planner/daily', {
-      params: { date },
-    });
-    const raw = Array.isArray(data) ? data : (data.tasks ?? []);
-    await inProgressStore.init();
-    return { date, tasks: inProgressStore.applyOverlayList(raw.map(normalizeTaskRaw)) };
-  },
+  const { data } = await apiClient.get<any[] | { tasks?: any[] }>('/planner/daily', {
+    params: { date },
+  });
+  const raw = Array.isArray(data) ? data : (data.tasks ?? []);
+  
+  await inProgressStore.init();
+  return { date, tasks: inProgressStore.applyOverlayList(raw.map(normalizeTaskRaw)) };
+},
 
   /** GET /planner/weekly?start_date=YYYY-MM-DD */
   getWeekly: async (startDate: string): Promise<WeeklyPlan> => {
