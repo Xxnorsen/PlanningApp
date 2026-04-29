@@ -1,10 +1,12 @@
 import { Tabs, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HapticTab } from '@/components/ui/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FloatingAddButton } from '@/components/ui/floating-add-button';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -24,6 +26,7 @@ export default function TabLayout() {
           position: 'absolute',
           left: 20,
           right: 20,
+          bottom: insets.bottom + 10,
           height: 60,
         },
       }}
