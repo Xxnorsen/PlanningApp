@@ -4,12 +4,12 @@ import { HapticTab } from '@/components/ui/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FloatingAddButton } from '@/components/ui/floating-add-button';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View } from 'react-native';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
         headerShown: false,
@@ -78,6 +78,6 @@ export default function TabLayout() {
         }}
       />
       </Tabs>
-    </SafeAreaView>
+    </View>
   );
 }
