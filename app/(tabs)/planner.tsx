@@ -91,29 +91,22 @@ export default function PlannerScreen() {
   // Day view uses /planner/daily. The "Completed" filter is day-agnostic
   // (backend has no completed_at timestamp to group by), so it pulls from
   // /tasks/completed/ directly.
- const load = useCallback(async (date: Date, filter: Filter, isRefresh = false) => {
+ const load = useCallback(async (date: Date, _filter: Filter, isRefresh = false) => {
   if (isRefresh) setRefreshing(true); else setLoading(true);
   setError('');
   try {
-    if (filter === 'Completed') {
-      setTasks(await tasksApi.getCompleted());
-    } else if (filter === 'In Progress') {
-      const active = await tasksApi.getActive();
-      setTasks(active.filter(t => t.status === 'in_progress'));
-    } else if (filter === 'To do') {
-      const active = await tasksApi.getActive();
-      setTasks(active.filter(t => t.status === 'pending'));
-    } else {
-      // 'All' — merge active + today's planner results, deduplicate
-      const [active, plan] = await Promise.all([
-        tasksApi.getActive(),
-        plannerApi.getDaily(toIsoDate(date)),
-      ]);
-      const merged = new Map<string, Task>();
-      active.forEach(t => merged.set(t.id, t));
-      plan.tasks.forEach(t => merged.set(t.id, t));
-      setTasks(Array.from(merged.values()));
-    }
+    // Always fetch active + completed + day planner so search can find any task
+    // regardless of the active filter chip. Filter is applied client-side.
+    const [active, completed, plan] = await Promise.all([
+      tasksApi.getActive(),
+      tasksApi.getCompleted(),
+      plannerApi.getDaily(toIsoDate(date)),
+    ]);
+    const merged = new Map<string, Task>();
+    active.forEach(t => merged.set(t.id, t));
+    completed.forEach(t => merged.set(t.id, t));
+    plan.tasks.forEach(t => merged.set(t.id, t));
+    setTasks(Array.from(merged.values()));
   } catch (e) {
     const err = toApiError(e);
     setError(err.message);
@@ -198,23 +191,18 @@ export default function PlannerScreen() {
   }, [categories]);
 
   const filteredTasks = tasks.filter(task => {
-    const label = taskStatusLabel(task);
-    if (activeFilter === 'All') {
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return task.title.toLowerCase().includes(query) ||
-               (task.description && task.description.toLowerCase().includes(query));
-      }
-      return true;
-    }
-    if (activeFilter === 'To do' && label !== 'To-do') return false;
-    if (activeFilter === 'In Progress' && label !== 'In Progress') return false;
-    if (activeFilter === 'Completed' && label !== 'Done') return false;
+    // When searching, ignore the active filter chip — search across every task
+    // (active + completed) so users can find anything by name/description.
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       return task.title.toLowerCase().includes(query) ||
-             (task.description && task.description.toLowerCase().includes(query));
+             (task.description?.toLowerCase().includes(query) ?? false);
     }
+    const label = taskStatusLabel(task);
+    if (activeFilter === 'All') return true;
+    if (activeFilter === 'To do') return label === 'To-do';
+    if (activeFilter === 'In Progress') return label === 'In Progress';
+    if (activeFilter === 'Completed') return label === 'Done';
     return true;
   });
 
