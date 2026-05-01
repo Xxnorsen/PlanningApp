@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -262,6 +262,7 @@ export default function CategoriesScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.BACKGROUND} />
       {/* Header */}
       <View style={styles.header}>
         <View style={[styles.circleLarge, NO_POINTER]} />
