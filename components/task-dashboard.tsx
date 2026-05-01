@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Modal,
   TextInput,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -433,6 +434,7 @@ const TaskDashboard: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.BACKGROUND} />
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -853,6 +855,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 52,
     position: 'relative',
+    overflow: 'visible',
   },
   circleLarge: {
     position: 'absolute',

@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -202,7 +203,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-
+      <StatusBar barStyle="light-content" backgroundColor={colors.BACKGROUND} />
       {/* ── Purple hero ── */}
       <View style={styles.hero}>
         <View style={[styles.circleLarge, NO_POINTER]} />
@@ -464,7 +465,7 @@ type AppColors = { readonly [K in keyof typeof COLORS]: string };
 const makeStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.BACKGROUND },
 
-  hero: { alignItems: 'center', paddingTop: 24, paddingBottom: 36, position: 'relative', overflow: 'hidden' },
+  hero: { alignItems: 'center', paddingTop: 24, paddingBottom: 36, position: 'relative' },
   circleLarge: {
     position: 'absolute',
     width: 140, height: 140, borderRadius: 70,

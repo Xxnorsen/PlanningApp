@@ -10,6 +10,7 @@ import {
   Dimensions,
   Animated,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LoadingCat } from '@/components/ui/loading-cat';
@@ -199,6 +200,7 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.BACKGROUND} />
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -372,6 +374,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 52,
     position: 'relative',
+    overflow: 'visible',
   },
   circleLarge: {
     position: 'absolute',
