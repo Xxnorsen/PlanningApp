@@ -103,7 +103,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   content: {
     alignItems: 'center',
-    paddingTop: CAT_OVERLAP + 12,
+    paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 24,
   },
