@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  TextInput, Modal, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,7 +45,7 @@ function CategoryRow({
       <View style={styles.rowInfo}>
         <Text style={styles.rowName}>{category.name}</Text>
         <Text style={styles.rowCount}>
-          {taskCount} {taskCount === 1 ? 'Event' : 'Events'}
+          {taskCount} {taskCount === 1 ? 'Task' : 'Tasks'}
         </Text>
       </View>
       <TouchableOpacity style={styles.actionBtn} onPress={onEdit} activeOpacity={0.7}>
@@ -156,7 +156,7 @@ function DeleteModal({
             <Ionicons name="trash-outline" size={26} color="#FF4757" />
           </View>
           <Text style={styles.delTitle}>Delete &quot;{category?.name}&quot;?</Text>
-          <Text style={styles.delBody}>Events in this category will be uncategorised.</Text>
+          <Text style={styles.delBody}>Tasks in this category will be uncategorised.</Text>
 
           {error ? (
             <View style={styles.errorRow}>
@@ -167,7 +167,7 @@ function DeleteModal({
 
           <TouchableOpacity style={styles.delBtn} onPress={onConfirm} disabled={busy} activeOpacity={0.85}>
             {busy
-              ? <ActivityIndicator color="#fff" size="small" />
+              ? <LoadingCat size={28} />
               : <Text style={styles.delBtnText}>Delete</Text>}
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={busy} activeOpacity={0.7}>
@@ -289,7 +289,7 @@ export default function CategoriesScreen() {
                 <Ionicons name="grid-outline" size={38} color={colors.MUTED_ON_CARD} />
               </View>
               <Text style={styles.emptyTitle}>No categories yet</Text>
-              <Text style={styles.emptySub}>Create one to organise your events</Text>
+              <Text style={styles.emptySub}>Create one to organise your tasks</Text>
               <TouchableOpacity style={styles.emptyBtn} onPress={openCreate} activeOpacity={0.85}>
                 <Ionicons name="add" size={16} color={colors.DARK_TEXT} />
                 <Text style={styles.emptyBtnText}>Create Category</Text>

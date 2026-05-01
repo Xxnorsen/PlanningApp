@@ -111,12 +111,12 @@ export default function AddTaskScreen() {
             <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={20} color={colors.DARK_TEXT} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>New Event</Text>
+            <Text style={styles.headerTitle}>New Task</Text>
             <View style={styles.headerBtnSpacer} />
           </View>
 
           <Text style={styles.heroSubtitle}>Let&apos;s add</Text>
-          <Text style={styles.heroTitle}>A NEW EVENT</Text>
+          <Text style={styles.heroTitle}>A NEW TASK</Text>
         </View>
 
         {/* ── White card ── */}
@@ -241,7 +241,7 @@ export default function AddTaskScreen() {
                 <LoadingCat size={40} />
               ) : (
                 <>
-                  <Text style={styles.primaryButtonText}>Add Event</Text>
+                  <Text style={styles.primaryButtonText}>Add Task</Text>
                   <View style={styles.arrowCircle}>
                     <Ionicons name="arrow-forward" size={18} color={colors.DARK_TEXT} />
                   </View>

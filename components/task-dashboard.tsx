@@ -77,7 +77,7 @@ export const CelebrationOverlay: React.FC<{
   onDone: () => void;
   title?: string;
   subtitle?: string;
-}> = ({ visible, onDone, title = 'Well Done!', subtitle = 'Event marked as complete' }) => {
+}> = ({ visible, onDone, title = 'Well Done!', subtitle = 'Task marked as complete' }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const scale = useRef(new Animated.Value(0)).current;
@@ -227,7 +227,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, icon, taskCount,
         <View style={styles.taskGroupInfo}>
           <Text style={styles.taskGroupName}>{name}</Text>
           <Text style={styles.taskGroupCount}>
-            {taskCount} {taskCount === 1 ? 'Event' : 'Events'}
+            {taskCount} {taskCount === 1 ? 'Task' : 'Tasks'}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.MUTED_ON_CARD} />
@@ -503,7 +503,7 @@ const TaskDashboard: React.FC = () => {
                 activeOpacity={0.85}
                 onPress={() => router.push('/(tabs)/planner')}
               >
-                <Text style={styles.viewTasksText}>View Events</Text>
+                <Text style={styles.viewTasksText}>View Tasks</Text>
                 <View style={styles.arrowCircle}>
                   <Ionicons name="arrow-forward" size={14} color={colors.DARK_TEXT} />
                 </View>
@@ -712,7 +712,7 @@ const TaskDashboard: React.FC = () => {
           )}
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Upcoming Events</Text>
+            <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
             <View style={styles.sectionBadge}>
               <Text style={styles.sectionBadgeText}>{upcomingTasks.length}</Text>
             </View>
@@ -732,7 +732,7 @@ const TaskDashboard: React.FC = () => {
                 activeOpacity={0.85}
               >
                 <Ionicons name="add" size={16} color={colors.DARK_TEXT} />
-                <Text style={styles.emptyInlineBtnText}>Add event</Text>
+                <Text style={styles.emptyInlineBtnText}>Add task</Text>
               </TouchableOpacity>
             </View>
           ) : (

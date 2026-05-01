@@ -1,6 +1,5 @@
-// Native fallback — ActivityIndicator (webm not supported on iOS/Android)
 import React from 'react';
-import { ActivityIndicator } from 'react-native';
+import LottieView from 'lottie-react-native';
 
 interface LoadingCatProps {
   size?: number;
@@ -8,9 +7,11 @@ interface LoadingCatProps {
 
 export function LoadingCat({ size = 180 }: LoadingCatProps) {
   return (
-    <ActivityIndicator
-      size={size > 60 ? 'large' : 'small'}
-      color="#C8FF3E"
+    <LottieView
+      source={require('@/assets/animations/Loading Cat.json')}
+      autoPlay
+      loop
+      style={{ width: size, height: size }}
     />
   );
 }

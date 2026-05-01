@@ -257,7 +257,7 @@ export default function ProgressScreen() {
               <Text style={styles.todaySubtitle}>Today&apos;s Progress</Text>
               <Text style={styles.todayTitle}>
                 {todayTotals.total === 0
-                  ? 'No events today'
+                  ? 'No tasks today'
                   : almostDone
                     ? 'Almost Done!'
                     : `${completionRate}% Complete`}

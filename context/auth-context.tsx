@@ -20,7 +20,6 @@ interface AuthContextValue {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
-  updateUser: (updates: Partial<Pick<User, 'name' | 'avatarUri'>>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -110,34 +109,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const updateUser = useCallback(async (updates: Partial<Pick<User, 'name' | 'avatarUri'>>) => {
-    // Apply the change locally first so the UI reflects it immediately —
-    // even if the backend rejects the call (e.g. no profile route), the
-    // user still sees the new name in this session.
-    setUser((prev) => {
-      if (!prev) return prev;
-      const updated = { ...prev, ...updates };
-      if ('avatarUri' in updates && updates.avatarUri === undefined) {
-        delete updated.avatarUri;
-      }
-      storage.set(STORAGE_KEYS.USER, updated);
-      return updated;
-    });
-
-    // `avatarUri` is a local file URI — stays in AsyncStorage only.
-    // `name` should be persisted to the backend so it survives re-login.
-    if (updates.name !== undefined) {
-      try {
-        await authApi.updateProfile({ name: updates.name });
-      } catch (e) {
-        // Backend route may not exist — keep the local update but surface
-        // the failure so callers can warn the user that it won't survive
-        // a sign-out.
-        console.warn('[updateProfile] backend update failed; local change kept', e);
-      }
-    }
-  }, []);
-
   // Register once: any 401 from the API → clear session.
   // AuthGate in app/_layout.tsx then redirects to /(auth)/login.
   const logoutRef = useRef(logout);
@@ -164,7 +135,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         clearError,
-        updateUser,
       }}
     >
       {children}
