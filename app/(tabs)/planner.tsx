@@ -224,7 +224,7 @@ export default function PlannerScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.ACCENT} />
+      <StatusBar barStyle="light-content" />
 
       {/* ── Purple hero ── */}
       <View style={styles.hero}>
