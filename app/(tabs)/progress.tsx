@@ -158,34 +158,64 @@ export default function ProgressScreen() {
     : (progress?.completionRate ?? 0);
   const almostDone = todayTotals.total > 0 && completionRate >= 70;
 
-  // Check for Early Bird achievement (3 tasks completed before 10 AM)
-  const earlyBirdTasks = tasks.filter(task => {
-    if (!task.completedAt) return false;
-    const completedTime = new Date(task.completedAt);
-    return completedTime.getHours() < 10; // Before 10 AM
+  // ── Achievements (derived from tasks + categories, no persistence) ──
+  const completedTasks = tasks.filter(t => t.status === 'completed');
+  const completedCount = completedTasks.length;
+  const pendingCount = tasks.filter(t => t.status !== 'completed').length;
+
+  const hasFirstStep = completedCount >= 1;
+  const hasOnARoll = completedCount >= 10;
+  const hasCenturion = completedCount >= 100;
+  const hasHighAchiever = completedTasks.filter(t => t.priority === 'high').length >= 5;
+  const hasCleanSlate = tasks.length > 0 && pendingCount === 0;
+
+  // Category Master: any category with >=1 task where every task is completed
+  const masteredCategory = categories.find(cat => {
+    const inCat = tasks.filter(t => t.categoryId === cat.id);
+    return inCat.length > 0 && inCat.every(t => t.status === 'completed');
   });
-  const hasEarlyBirdAchievement = earlyBirdTasks.length >= 3;
+  const hasCategoryMaster = !!masteredCategory;
 
-  // Check for Foodie Master achievement (all food-related tasks completed)
-  const foodCategory = categories.find(cat => 
-    cat.name.toLowerCase().includes('food') || 
-    cat.name.toLowerCase().includes('restaurant') ||
-    cat.name.toLowerCase().includes('dining')
-  );
-  
-  const foodTasks = tasks.filter(task => 
-    task.categoryId && foodCategory && task.categoryId === foodCategory.id
-  );
-  
-  const totalFoodTasks = [...tasks].filter(task => 
-    task.categoryId && foodCategory && task.categoryId === foodCategory.id
-  ).length;
-  
-  const hasFoodieMasterAchievement = foodCategory && totalFoodTasks > 0 && 
-    foodTasks.every(task => task.status === 'completed');
+  const earnedAchievements = [
+    hasFirstStep && {
+      icon: 'flag-outline' as const,
+      title: 'First Step',
+      description: 'Completed your first task',
+      color: '#2ED573',
+    },
+    hasOnARoll && {
+      icon: 'rocket-outline' as const,
+      title: 'On a Roll',
+      description: `${completedCount} tasks completed`,
+      color: '#1E90FF',
+    },
+    hasCenturion && {
+      icon: 'trophy-outline' as const,
+      title: 'Centurion',
+      description: '100 tasks completed',
+      color: '#FFA502',
+    },
+    hasHighAchiever && {
+      icon: 'flame-outline' as const,
+      title: 'High Achiever',
+      description: '5 high-priority tasks done',
+      color: '#FF4757',
+    },
+    hasCategoryMaster && {
+      icon: 'ribbon-outline' as const,
+      title: 'Category Master',
+      description: `Cleared every task in "${masteredCategory!.name}"`,
+      color: '#6C5CE7',
+    },
+    hasCleanSlate && {
+      icon: 'checkmark-done-circle-outline' as const,
+      title: 'Clean Slate',
+      description: 'Zero pending tasks',
+      color: '#C8FF3E',
+    },
+  ].filter(Boolean) as { icon: keyof typeof Ionicons.glyphMap; title: string; description: string; color: string }[];
 
-  // Check if there are any achievements
-  const hasAnyAchievements = hasEarlyBirdAchievement || hasFoodieMasterAchievement;
+  const hasAnyAchievements = earnedAchievements.length > 0;
 
   if (loading) {
     return (
@@ -315,22 +345,15 @@ export default function ProgressScreen() {
           
           {hasAnyAchievements ? (
             <View style={styles.achievementsList}>
-              {hasEarlyBirdAchievement && (
+              {earnedAchievements.map((a) => (
                 <AchievementCard
-                  icon="sunny-outline"
-                  title="Early Bird"
-                  description={`${earlyBirdTasks.length} tasks completed before 10 AM`}
-                  color="#FFA502"
+                  key={a.title}
+                  icon={a.icon}
+                  title={a.title}
+                  description={a.description}
+                  color={a.color}
                 />
-              )}
-              {hasFoodieMasterAchievement && (
-                <AchievementCard
-                  icon="restaurant-outline"
-                  title="Foodie Master"
-                  description={`Completed all ${totalFoodTasks} Food-related tasks`}
-                  color="#FF6B6B"
-                />
-              )}
+              ))}
             </View>
           ) : (
             <View style={styles.emptyAchievements}>
