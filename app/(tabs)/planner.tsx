@@ -219,8 +219,8 @@ export default function PlannerScreen() {
   });
 
   const headerLabel = isSameDay(selectedDate, today)
-    ? "Today's Events"
-    : `${WEEKDAYS[selectedDate.getDay()]}'s Events`;
+    ? "Today's Tasks"
+    : `${WEEKDAYS[selectedDate.getDay()]}'s Tasks`;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -358,13 +358,13 @@ export default function PlannerScreen() {
                   size={48}
                   color={colors.INPUT_BORDER}
                 />
-                <Text style={styles.emptyText}>No events for this day.</Text>
+                <Text style={styles.emptyText}>No tasks for this day.</Text>
                 <TouchableOpacity
                   style={styles.retryBtn}
                   onPress={() => router.push('/(tabs)/add-task')}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.retryText}>Add Event</Text>
+                  <Text style={styles.retryText}>Add Task</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -485,7 +485,7 @@ export default function PlannerScreen() {
                 activeOpacity={0.85}
               >
                 <Ionicons name="add" size={18} color={colors.DARK_TEXT} />
-                <Text style={styles.calAddBtnText}>Add Event</Text>
+                <Text style={styles.calAddBtnText}>Add Task</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -674,7 +674,12 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     gap: 14,
   },
 
-  centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centerLoader: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   calOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
   calSheet: {

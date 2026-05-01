@@ -37,7 +37,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Events',
+          title: 'Tasks',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="checklist" color={color} />,
         }}
       />

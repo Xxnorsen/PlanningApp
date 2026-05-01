@@ -151,10 +151,6 @@ export default function LoginScreen() {
               hint={!passwordError && !password ? "Use a strong password you'll remember." : ''}
             />
 
-            <TouchableOpacity style={styles.forgotRow} activeOpacity={0.7}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
               onPress={handleLogin}
@@ -249,9 +245,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     marginBottom: 16,
   },
   errorBannerText: { fontFamily: FontFamily.REGULAR, fontSize: 13, color: '#fff', flex: 1 },
-
-  forgotRow: { alignItems: 'flex-end', marginTop: -4, marginBottom: 28 },
-  forgotText: { fontFamily: FontFamily.BOLD, fontSize: 13, color: colors.ACCENT },
 
   primaryButton: {
     height: 56,

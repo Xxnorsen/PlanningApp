@@ -67,39 +67,6 @@ export const authApi = {
     return normalizeUser(data);
   },
 
-  /**
-   * Update the current user's profile. The backend route varies between
-   * deployments — try a few common shapes so the call works regardless.
-   * Throws only if every attempt fails.
-   */
-  updateProfile: async (updates: { name?: string }): Promise<User> => {
-    const body = { name: updates.name, full_name: updates.name };
-    const attempts: { method: 'put' | 'patch'; url: string }[] = [
-      { method: 'put',   url: '/auth/me' },
-      { method: 'patch', url: '/auth/me' },
-      { method: 'put',   url: '/users/me' },
-      { method: 'patch', url: '/users/me' },
-      { method: 'put',   url: '/auth/profile' },
-    ];
-    let lastErr: unknown;
-    for (const a of attempts) {
-      try {
-        const { data } = await apiClient.request<RawUser>({
-          method: a.method,
-          url: a.url,
-          data: body,
-        });
-        return normalizeUser(data);
-      } catch (e: any) {
-        lastErr = e;
-        // Only fall through on 404/405 (route mismatch). Re-throw on auth/network errors.
-        const status = e?.status ?? e?.response?.status;
-        if (status !== 404 && status !== 405) throw e;
-      }
-    }
-    throw lastErr;
-  },
-
   logout: async (): Promise<void> => {
     // Stateless JWT — nothing to call on server
   },
