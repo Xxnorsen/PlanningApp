@@ -348,7 +348,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
-    position: 'relative', overflow: 'hidden',
+    position: 'relative',
   },
   circleLarge: {
     position: 'absolute',

@@ -199,6 +199,71 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      {/* ── Purple hero ── */}
+      <View style={styles.hero}>
+        <View style={styles.circleLarge} />
+        <View style={styles.circleMedium} />
+        <View style={styles.circleDot} />
+        <View style={styles.circlePink} />
+
+        <View style={styles.topHeader}>
+          <View style={styles.avatarRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{firstLetter}</Text>
+            </View>
+            <View>
+              <Text style={styles.helloText}>Hello!</Text>
+              <Text style={styles.userName} numberOfLines={1}>{userName}</Text>
+            </View>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.bellBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push('/categories')}
+            >
+              <Ionicons name="grid-outline" size={18} color={colors.DARK_TEXT} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bellBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push('/(tabs)/planner')}
+            >
+              <Ionicons name="arrow-forward" size={18} color={colors.DARK_TEXT} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Animated.View
+          style={[
+            styles.todayBanner,
+            { transform: [{ scale: headerScale }], opacity: headerOpacity },
+          ]}
+        >
+          <View style={styles.todayLeft}>
+            <Text style={styles.todaySubtitle}>Today&apos;s Progress</Text>
+            <Text style={styles.todayTitle}>
+              {todayTotals.total === 0
+                ? 'No events today'
+                : almostDone
+                  ? 'Almost Done!'
+                  : `${completionRate}% Complete`}
+            </Text>
+            <TouchableOpacity
+              style={styles.viewTasksBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push('/(tabs)/planner')}
+            >
+              <Text style={styles.viewTasksText}>View Tasks</Text>
+              <View style={styles.arrowCircle}>
+                <Ionicons name="arrow-forward" size={14} color={colors.DARK_TEXT} />
+              </View>
+            </TouchableOpacity>
+          </View>
+          <CircularProgress progress={completionRate} />
+        </Animated.View>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -212,71 +277,6 @@ export default function ProgressScreen() {
           />
         }
       >
-        {/* ── Purple hero ── */}
-        <View style={styles.hero}>
-          <View style={styles.circleLarge} />
-          <View style={styles.circleMedium} />
-          <View style={styles.circleDot} />
-          <View style={styles.circlePink} />
-
-          <View style={styles.topHeader}>
-            <View style={styles.avatarRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{firstLetter}</Text>
-              </View>
-              <View>
-                <Text style={styles.helloText}>Hello!</Text>
-                <Text style={styles.userName} numberOfLines={1}>{userName}</Text>
-              </View>
-            </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.bellBtn}
-                activeOpacity={0.85}
-                onPress={() => router.push('/categories')}
-              >
-                <Ionicons name="grid-outline" size={18} color={colors.DARK_TEXT} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.bellBtn}
-                activeOpacity={0.85}
-                onPress={() => router.push('/(tabs)/planner')}
-              >
-                <Ionicons name="arrow-forward" size={18} color={colors.DARK_TEXT} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <Animated.View
-            style={[
-              styles.todayBanner,
-              { transform: [{ scale: headerScale }], opacity: headerOpacity },
-            ]}
-          >
-            <View style={styles.todayLeft}>
-              <Text style={styles.todaySubtitle}>Today&apos;s Progress</Text>
-              <Text style={styles.todayTitle}>
-                {todayTotals.total === 0
-                  ? 'No events today'
-                  : almostDone
-                    ? 'Almost Done!'
-                    : `${completionRate}% Complete`}
-              </Text>
-              <TouchableOpacity
-                style={styles.viewTasksBtn}
-                activeOpacity={0.85}
-                onPress={() => router.push('/(tabs)/planner')}
-              >
-                <Text style={styles.viewTasksText}>View Tasks</Text>
-                <View style={styles.arrowCircle}>
-                  <Ionicons name="arrow-forward" size={14} color={colors.DARK_TEXT} />
-                </View>
-              </TouchableOpacity>
-            </View>
-            <CircularProgress progress={completionRate} />
-          </Animated.View>
-        </View>
-
         {/* ── White card ── */}
         <View style={styles.card}>
           <View style={styles.handle} />
@@ -368,6 +368,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
 
   hero: {
+    backgroundColor: colors.BACKGROUND,
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 52,
