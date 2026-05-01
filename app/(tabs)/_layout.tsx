@@ -5,11 +5,13 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FloatingAddButton } from '@/components/ui/floating-add-button';
 import { Ionicons } from '@expo/vector-icons';
 import { View } from 'react-native';
+import { useTheme } from '@/context/theme-context';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.BACKGROUND }}>
       <Tabs
         screenOptions={{
         headerShown: false,
