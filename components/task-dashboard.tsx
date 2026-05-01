@@ -25,13 +25,27 @@ import { useTasks } from '@/context/task-context';
 import { useCategories } from '@/context/category-context';
 import { useTheme } from '@/context/theme-context';
 import { progressApi, type ProgressData } from '@/services/api/progress';
-import { plannerApi } from '@/services/api/planner';
 import { showApiErrorAlert } from '@/services/api/errors';
 import type { Task, TaskPriority } from '@/types/task';
+import { formatElapsed, useTaskTimer } from '@/hooks/use-task-timer';
 
 const { width } = Dimensions.get('window');
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+function formatDueDate(due: string): string {
+  const ymd = due.slice(0, 10);
+  const [y, m, d] = ymd.split('-').map(Number);
+  if (!y || !m || !d) return ymd;
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (date.getTime() === today.getTime()) return 'Today';
+  if (date.getTime() === tomorrow.getTime()) return 'Tomorrow';
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
 
 const priorityBadge: Record<TaskPriority, { bg: string; color: string; icon: IoniconName }> = {
   high: { bg: '#FFECEE', color: '#FF4757', icon: 'flame' },
@@ -154,6 +168,7 @@ interface InProgressCardProps {
   onAction: () => void;
   actionLabel?: string;
   actionIcon?: IoniconName;
+  onDone?: () => void;
 }
 
 const InProgressCard: React.FC<InProgressCardProps> = ({
@@ -163,16 +178,21 @@ const InProgressCard: React.FC<InProgressCardProps> = ({
   onAction,
   actionLabel = 'Mark done',
   actionIcon = 'checkmark',
+  onDone,
 }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const p = priorityBadge[task.priority];
+  const { isRunning, elapsedMs } = useTaskTimer(task.id);
   return (
     <View style={[styles.inProgressCard, { backgroundColor: colors.INPUT_BG }]}>
       <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={{ gap: 10 }}>
         <View style={styles.inProgressCardHeader}>
           <Text style={styles.inProgressCategory} numberOfLines={1}>
             {categoryName ?? 'General'}
+            {task.dueDate ? (
+              <Text style={styles.inProgressDate}> · {formatDueDate(task.dueDate)}</Text>
+            ) : null}
           </Text>
           <View style={[styles.categoryIconBadge, { backgroundColor: p.bg }]}>
             <Ionicons name={p.icon} size={14} color={p.color} />
@@ -183,15 +203,34 @@ const InProgressCard: React.FC<InProgressCardProps> = ({
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.doneBtn}
-        onPress={onAction}
-        activeOpacity={0.85}
-        hitSlop={6}
-      >
-        <Ionicons name={actionIcon} size={16} color={colors.DARK_TEXT} />
-        <Text style={styles.doneBtnText}>{actionLabel}</Text>
-      </TouchableOpacity>
+      <View style={styles.cardActionRow}>
+        <TouchableOpacity
+          style={[styles.doneBtn, styles.cardActionBtn, isRunning && styles.cardStopBtn]}
+          onPress={onAction}
+          activeOpacity={0.85}
+          hitSlop={6}
+        >
+          <Ionicons
+            name={isRunning ? 'stop' : actionIcon}
+            size={16}
+            color={isRunning ? '#fff' : colors.DARK_TEXT}
+          />
+          <Text style={[styles.doneBtnText, isRunning && styles.cardStopBtnText]}>
+            {isRunning ? formatElapsed(elapsedMs) : actionLabel}
+          </Text>
+        </TouchableOpacity>
+        {onDone && (
+          <TouchableOpacity
+            style={[styles.doneBtn, styles.cardActionBtn]}
+            onPress={onDone}
+            activeOpacity={0.85}
+            hitSlop={6}
+          >
+            <Ionicons name="checkmark" size={16} color={colors.DARK_TEXT} />
+            <Text style={styles.doneBtnText}>Done</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };
@@ -279,7 +318,6 @@ const TaskDashboard: React.FC = () => {
   };
 
   const [progress, setProgress] = useState<ProgressData | null>(null);
-  const [todayTotals, setTodayTotals] = useState<{ completed: number; pending: number; total: number }>({ completed: 0, pending: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
@@ -300,21 +338,12 @@ const TaskDashboard: React.FC = () => {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       try {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        const todayIso = `${yyyy}-${mm}-${dd}`;
-        const [, , p, todayPlan] = await Promise.all([
+        const [, , p] = await Promise.all([
           fetchAll().catch(() => {}),
           fetchCategories().catch(() => {}),
           progressApi.get().catch(() => null),
-          plannerApi.getDaily(todayIso).catch(() => ({ date: todayIso, tasks: [] })),
         ]);
         setProgress(p);
-        const completed = todayPlan.tasks.filter((t) => t.status === 'completed').length;
-        const total = todayPlan.tasks.length;
-        setTodayTotals({ completed, pending: total - completed, total });
         if (isRefresh) {
           await rotateSticker().catch(() => {});
         }
@@ -345,7 +374,15 @@ const TaskDashboard: React.FC = () => {
   );
 
   const upcomingTasks = useMemo(
-    () => tasks.filter((t) => t.status === 'pending').slice(0, 6),
+    () => tasks
+      .filter((t) => t.status === 'pending')
+      .sort((a, b) => {
+        // Earliest due date first; tasks without a due date sink to the bottom
+        const aKey = a.dueDate ? a.dueDate.slice(0, 10) : '￿';
+        const bKey = b.dueDate ? b.dueDate.slice(0, 10) : '￿';
+        return aKey.localeCompare(bKey);
+      })
+      .slice(0, 6),
     [tasks],
   );
 
@@ -374,6 +411,18 @@ const TaskDashboard: React.FC = () => {
     () => tasks.filter(t => t.status !== 'completed'),
     [tasks],
   );
+
+  const todayTotals = useMemo(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayIso = `${yyyy}-${mm}-${dd}`;
+    const todayTasks = tasks.filter((t) => t.dueDate?.slice(0, 10) === todayIso);
+    const completed = todayTasks.filter((t) => t.status === 'completed').length;
+    const total = todayTasks.length;
+    return { completed, pending: total - completed, total };
+  }, [tasks]);
 
   const filteredTasks = useMemo(() => {
     const todayDate = new Date();
@@ -705,7 +754,10 @@ const TaskDashboard: React.FC = () => {
                   task={task}
                   categoryName={task.categoryId ? categoryMap[task.categoryId] : undefined}
                   onPress={() => router.push(`/edit-task?id=${task.id}`)}
-                  onAction={() => handleToggleDone(task)}
+                  onAction={() => setInProgress(task, false)}
+                  actionLabel="Stop"
+                  actionIcon="stop"
+                  onDone={() => handleToggleDone(task)}
                 />
               ))}
             </ScrollView>
@@ -750,6 +802,7 @@ const TaskDashboard: React.FC = () => {
                   onAction={() => handleStartInProgress(task)}
                   actionLabel="Start"
                   actionIcon="play"
+                  onDone={() => handleToggleDone(task)}
                 />
               ))}
             </ScrollView>
@@ -1098,6 +1151,15 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontFamily: FontFamily.BOLD,
     fontSize: 13,
     color: colors.DARK_TEXT,
+  },
+  cardActionRow: { flexDirection: 'row', gap: 6, marginTop: 12 },
+  cardActionBtn: { flex: 1, marginTop: 0, paddingHorizontal: 6 },
+  cardStopBtn: { backgroundColor: '#FF4757' },
+  cardStopBtnText: { color: '#fff' },
+  inProgressDate: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 11,
+    color: colors.ACCENT,
   },
 
   taskGroupsList: { gap: 10 },

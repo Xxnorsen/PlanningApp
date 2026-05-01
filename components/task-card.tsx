@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
 import { useTheme } from '@/context/theme-context';
+import { formatElapsed, useTaskTimer } from '@/hooks/use-task-timer';
 import type { Task, TaskPriority } from '@/types/task';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -50,6 +51,7 @@ export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle, onTog
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const statusStyle = useMemo(() => statusStyleFor(colors), [colors]);
 
+  const { isRunning, elapsedMs } = useTaskTimer(task.id);
   const status = taskStatusLabel(task);
   const s = statusStyle[status];
   const p = priorityIcon[task.priority];
@@ -98,24 +100,24 @@ export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle, onTog
           <TouchableOpacity
             style={[
               styles.inProgressBtn,
-              task.status === 'in_progress' && styles.inProgressBtnActive,
+              isRunning && styles.inProgressBtnActive,
             ]}
             onPress={() => onToggleInProgress(task)}
             activeOpacity={0.85}
           >
             <Ionicons
-              name={task.status === 'in_progress' ? 'pause' : 'play'}
+              name={isRunning ? 'stop' : 'play'}
               size={14}
-              color={task.status === 'in_progress' ? COLORS.DARK_TEXT : '#FFA502'}
+              color={isRunning ? '#fff' : '#FFA502'}
             />
             <Text
               style={[
                 styles.inProgressBtnText,
-                task.status === 'in_progress' && styles.inProgressBtnTextActive,
+                isRunning && styles.inProgressBtnTextActive,
               ]}
               numberOfLines={1}
             >
-              {task.status === 'in_progress' ? 'Stop' : 'Start'}
+              {isRunning ? formatElapsed(elapsedMs) : 'Start'}
             </Text>
           </TouchableOpacity>
         )}
@@ -217,8 +219,8 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     gap: 6,
   },
   inProgressBtnActive: {
-    backgroundColor: '#FFA502',
-    borderColor: '#FFA502',
+    backgroundColor: '#FF4757',
+    borderColor: '#FF4757',
   },
   inProgressBtnText: {
     fontFamily: FontFamily.BOLD,
@@ -226,7 +228,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     color: '#FFA502',
   },
   inProgressBtnTextActive: {
-    color: colors.DARK_TEXT,
+    color: '#fff',
   },
   editBtn: {
     flex: 1,

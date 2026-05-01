@@ -67,7 +67,7 @@ export const tasksApi = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/tasks/${id}`);
-    await inProgressStore.remove(id);
+    await inProgressStore.clear(id);
   },
 
   /**
@@ -76,31 +76,29 @@ export const tasksApi = {
    * PUT is the same endpoint used for editing and is known to persist.
    */
   setCompleted: async (task: Task, completed: boolean): Promise<Task> => {
-  const { data } = await apiClient.put(`/tasks/${task.id}`, {
-    title: task.title,
-    description: task.description ?? null,
-    priority: task.priority,
-    category_id: task.categoryId ? Number(task.categoryId) : null,
-    due_date: toYmd(task.dueDate),
-    completed,
-  });
-  // Always remove from in-progress store in both directions
-  await inProgressStore.remove(task.id);
-  const normalized = normalizeTaskRaw(data);
-  // When uncompleting, skip applyOverlay — we just cleared the store,
-  // don't let a stale cache race condition re-apply in_progress
-  if (!completed) return normalized;
-  await inProgressStore.init();
-  return inProgressStore.applyOverlay(normalized);
-},
+    const { data } = await apiClient.put(`/tasks/${task.id}`, {
+      title: task.title,
+      description: task.description ?? null,
+      priority: task.priority,
+      category_id: task.categoryId ? Number(task.categoryId) : null,
+      due_date: toYmd(task.dueDate),
+      completed,
+    });
+    // Completing or un-completing both stop any running timer for this task.
+    await inProgressStore.clear(task.id);
+    return normalizeTaskRaw(data);
+  },
 
-  /** Mark/unmark a task as in-progress. Local-only — backend does not persist this. */
+  /**
+   * Start/stop the local timer for a task. Local-only — backend has no
+   * in-progress concept. Starting a task auto-stops any other running task.
+   */
   setInProgress: async (task: Task, inProgress: boolean): Promise<Task> => {
     if (inProgress) {
-      await inProgressStore.add(task.id);
+      await inProgressStore.start(task.id);
       return { ...task, status: 'in_progress' };
     }
-    await inProgressStore.remove(task.id);
+    await inProgressStore.stop(task.id);
     return { ...task, status: task.status === 'completed' ? 'completed' : 'pending' };
   },
 };
