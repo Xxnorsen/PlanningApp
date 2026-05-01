@@ -284,42 +284,45 @@ export default function PlannerScreen() {
       {/* ── White card ── */}
       <View style={styles.card2}>
         <View style={styles.handle} />
-        <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={18} color={colors.INPUT_BORDER} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search tasks..."
-            placeholderTextColor={colors.INPUT_BORDER}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={18} color={colors.INPUT_BORDER} />
-            </TouchableOpacity>
-          )}
-        </View>
+        <View style={styles.stickyHeader}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search-outline" size={18} color={colors.INPUT_BORDER} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search tasks..."
+              placeholderTextColor={colors.INPUT_BORDER}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                <Ionicons name="close-circle" size={18} color={colors.INPUT_BORDER} />
+              </TouchableOpacity>
+            )}
+          </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScroll}
-        >
-          {FILTERS.map(f => (
-            <TouchableOpacity
-              key={f}
-              onPress={() => setActiveFilter(f)}
-              style={[styles.filterChip, activeFilter === f && styles.filterChipActive]}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[styles.filterText, activeFilter === f && styles.filterTextActive]}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScroll}
+            style={styles.filterScrollWrap}
+          >
+            {FILTERS.map(f => (
+              <TouchableOpacity
+                key={f}
+                onPress={() => setActiveFilter(f)}
+                style={[styles.filterChip, activeFilter === f && styles.filterChipActive]}
+                activeOpacity={0.8}
               >
-                {f}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <Text
+                  style={[styles.filterText, activeFilter === f && styles.filterTextActive]}
+                >
+                  {f}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         
 
@@ -623,6 +626,14 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 6,
   },
+  filterScrollWrap: {
+    flexGrow: 0,
+  },
+  stickyHeader: {
+    backgroundColor: colors.CARD,
+    zIndex: 2,
+    position: 'relative',
+  },
   filterChip: {
     paddingHorizontal: 18,
     paddingVertical: 8,
@@ -657,6 +668,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.INPUT_BG,
     borderWidth: 1.5,
     borderColor: colors.INPUT_BORDER,
+    zIndex: 2,
   },
   searchIcon: { marginRight: 8 },
   searchInput: {
@@ -669,8 +681,8 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
 
   taskList: {
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 100,
+    paddingTop: 24,
+    paddingBottom: 140,
     gap: 14,
   },
 

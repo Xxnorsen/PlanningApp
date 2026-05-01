@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LoadingCat } from '@/components/ui/loading-cat';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { Calendar } from 'react-native-calendars';
 
 import { COLORS } from '@/constants/colors';
 import { FontFamily } from '@/constants/fonts';
@@ -96,9 +96,9 @@ export default function EditTaskScreen() {
       year: 'numeric',
     });
 
-  const onDateChange = (_e: DateTimePickerEvent, selected?: Date) => {
-    if (Platform.OS === 'android') setShowPicker(false);
-    if (selected) setDueDate(selected);
+  const onDaySelect = (day: { dateString: string }) => {
+    setDueDate(new Date(day.dateString + 'T00:00:00'));
+    setShowPicker(false);
   };
 
   const toggleCategoriesMenu = () => {
@@ -318,18 +318,38 @@ export default function EditTaskScreen() {
               </View>
             </TouchableOpacity>
 
-            {showPicker && (
-              <DateTimePicker
-                value={dueDate ?? new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                onChange={onDateChange}
-                themeVariant="light"
-                textColor={colors.DARK_TEXT}
-                accentColor={colors.ACCENT}
-                style={Platform.OS === 'ios' ? styles.iosPicker : null}
-              />
-            )}
+            <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
+              <TouchableOpacity style={styles.calOverlay} activeOpacity={1} onPress={() => setShowPicker(false)}>
+                <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+                  <View style={styles.calSheet}>
+                    <Text style={styles.calTitle}>Pick a date</Text>
+                    <Calendar
+                      onDayPress={onDaySelect}
+                      markedDates={dueDate ? {
+                        [dueDate.toISOString().split('T')[0]]: { selected: true, selectedColor: colors.ACCENT },
+                      } : {}}
+                      theme={{
+                        backgroundColor: colors.CARD,
+                        calendarBackground: colors.CARD,
+                        selectedDayBackgroundColor: colors.ACCENT,
+                        selectedDayTextColor: colors.WHITE_TEXT,
+                        todayTextColor: colors.ACCENT,
+                        dayTextColor: colors.DARK_TEXT,
+                        textDisabledColor: colors.MUTED_ON_CARD,
+                        arrowColor: colors.ACCENT,
+                        monthTextColor: colors.DARK_TEXT,
+                        textDayFontFamily: FontFamily.REGULAR,
+                        textMonthFontFamily: FontFamily.BOLD,
+                        textDayHeaderFontFamily: FontFamily.BOLD,
+                      }}
+                    />
+                    <TouchableOpacity style={styles.calClearBtn} onPress={() => { setDueDate(null); setShowPicker(false); }}>
+                      <Text style={styles.calClearText}>Clear date</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </Modal>
 
             
             <PriorityPicker value={priority} onChange={setPriority} />
@@ -585,7 +605,25 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     minHeight: 70,
   },
   descriptionCard: { backgroundColor: colors.CARD },
-  iosPicker: { backgroundColor: colors.CARD, borderRadius: 16, marginBottom: 12 },
+  calOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  calSheet: {
+    backgroundColor: colors.CARD, borderRadius: 24,
+    padding: 20, width: 340,
+  },
+  calTitle: {
+    fontFamily: FontFamily.BOLD, fontSize: 17,
+    color: colors.DARK_TEXT, marginBottom: 12, textAlign: 'center',
+  },
+  calClearBtn: {
+    marginTop: 12, alignItems: 'center', paddingVertical: 10,
+  },
+  calClearText: {
+    fontFamily: FontFamily.REGULAR, fontSize: 14,
+    color: colors.MUTED_ON_CARD,
+  },
 
   footer: {
     flexDirection: 'row',
