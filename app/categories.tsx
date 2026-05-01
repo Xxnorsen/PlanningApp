@@ -270,7 +270,7 @@ export default function CategoriesScreen() {
         <View style={[styles.circlePink, NO_POINTER]} />
 
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={colors.WHITE_TEXT} />
+          <Ionicons name="arrow-back" size={18} color={colors.DARK_TEXT} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Categories</Text>
         <TouchableOpacity style={styles.addBtn} onPress={openCreate} activeOpacity={0.8}>
@@ -374,7 +374,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: COLORS.PINK,
     bottom: -8, right: 70, opacity: 0.5,
   },
-  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   headerTitle: { fontFamily: FontFamily.BOLD, fontSize: 20, color: colors.WHITE_TEXT, zIndex: 1 },
   addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.LIME, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
 

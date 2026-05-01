@@ -233,7 +233,13 @@ export default function EditTaskScreen() {
           <View style={styles.circleDot} />
           <View style={styles.circlePink} />
 
-          
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()} activeOpacity={0.85}>
+              <Ionicons name="arrow-back" size={18} color={colors.DARK_TEXT} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Edit Event</Text>
+            <View style={{ width: 38 }} />
+          </View>
 
           <Text style={styles.heroSubtitle}>{heroLabel}</Text>
           <Text style={styles.heroTitle} numberOfLines={2}>
