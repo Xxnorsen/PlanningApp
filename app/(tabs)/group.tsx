@@ -465,7 +465,7 @@ type AppColors = { readonly [K in keyof typeof COLORS]: string };
 const makeStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.BACKGROUND },
 
-  hero: { alignItems: 'center', paddingTop: 24, paddingBottom: 36, position: 'relative' },
+  hero: { backgroundColor: colors.BACKGROUND, alignItems: 'center', paddingTop: 24, paddingBottom: 36, position: 'relative', overflow: 'visible' },
   circleLarge: {
     position: 'absolute',
     width: 140, height: 140, borderRadius: 70,

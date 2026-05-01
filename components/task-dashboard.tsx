@@ -851,6 +851,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
 
   hero: {
+    backgroundColor: colors.BACKGROUND,
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 52,
