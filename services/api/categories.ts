@@ -1,6 +1,5 @@
 import { apiClient } from './client';
 import type { Category, CreateCategoryPayload } from '@/types/category';
-import { categoryCustomizationsStore } from '@/services/category-customizations-store';
 
 interface RawCategory {
   id: number | string;
@@ -26,38 +25,24 @@ export const categoriesApi = {
   /** GET /categories/ */
   getAll: async (): Promise<Category[]> => {
     const { data } = await apiClient.get<RawCategory[]>('/categories/');
-    await categoryCustomizationsStore.init();
-    return categoryCustomizationsStore.applyOverlayList(data.map(normalizeCategory));
+    return data.map(normalizeCategory);
   },
 
   /** POST /categories/ */
   create: async (payload: CreateCategoryPayload): Promise<Category> => {
     const { data } = await apiClient.post<RawCategory>('/categories/', payload);
-    const cat = normalizeCategory(data);
-    await categoryCustomizationsStore.set(cat.id, {
-      color: payload.color,
-      icon: payload.icon,
-    });
-    return { ...cat, color: payload.color, icon: payload.icon };
+    return normalizeCategory(data);
   },
 
   /** PUT /categories/{id} — no trailing slash. The backend issues a 307 redirect
    *  to the slash-less URL and browsers reject redirects on CORS preflight. */
   update: async (id: string, payload: Partial<CreateCategoryPayload>): Promise<Category> => {
     const { data } = await apiClient.put<RawCategory>(`/categories/${id}`, payload);
-    const cat = normalizeCategory(data);
-    if (payload.color !== undefined || payload.icon !== undefined) {
-      await categoryCustomizationsStore.set(id, {
-        color: payload.color,
-        icon: payload.icon,
-      });
-    }
-    return categoryCustomizationsStore.applyOverlay(cat);
+    return normalizeCategory(data);
   },
 
   /** DELETE /categories/{id}/ */
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/categories/${id}`);
-    await categoryCustomizationsStore.remove(id);
   },
 };
