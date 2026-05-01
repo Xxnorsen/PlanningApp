@@ -163,7 +163,7 @@ export default function RegisterScreen() {
 
             <InputField
               label="Full name"
-              placeholder="Alex Rivera"
+              placeholder="John Smith"
               iconName="person-outline"
               value={name}
               onChangeText={setName}
