@@ -64,7 +64,7 @@ export default function LoginScreen() {
     if (eErr || pErr) return;
 
     try {
-      await login(email.trim(), password);
+      await login(email.trim().toLowerCase(), password);
       router.replace('/(tabs)');
     } catch (e) {
       const err = toApiError(e);

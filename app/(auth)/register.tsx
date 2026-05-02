@@ -115,7 +115,7 @@ export default function RegisterScreen() {
     }
 
     try {
-      await register(name.trim(), email.trim(), password);
+      await register(name.trim(), email.trim().toLowerCase(), password);
       router.replace('/(tabs)');
     } catch (e) {
       const err = toApiError(e);
