@@ -37,6 +37,14 @@ function formatTime(iso?: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function formatDate(iso?: string): string {
+  if (!iso) return '';
+  const ymd = iso.slice(0, 10);
+  const [y, m, d] = ymd.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
 interface Props {
   task: Task;
   categoryName?: string;
@@ -70,7 +78,9 @@ export function TaskCard({ task, categoryName, onEdit, onDelete, onToggle, onTog
       ) : null}
       <View style={styles.cardMeta}>
         <View style={styles.timeRow}>
-          <Ionicons name="time-outline" size={14} color={colors.MUTED_ON_CARD} />
+          <Ionicons name="calendar-outline" size={14} color={colors.MUTED_ON_CARD} />
+          <Text style={styles.timeText}>{formatDate(task.dueDate)}</Text>
+          <Ionicons name="time-outline" size={14} color={colors.MUTED_ON_CARD} style={{ marginLeft: 8 }} />
           <Text style={styles.timeText}>{formatTime(task.dueDate)}</Text>
         </View>
         <TouchableOpacity

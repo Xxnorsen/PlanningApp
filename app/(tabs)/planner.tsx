@@ -190,21 +190,30 @@ export default function PlannerScreen() {
     return m;
   }, [categories]);
 
-  const filteredTasks = tasks.filter(task => {
-    // When searching, ignore the active filter chip — search across every task
-    // (active + completed) so users can find anything by name/description.
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      return task.title.toLowerCase().includes(query) ||
-             (task.description?.toLowerCase().includes(query) ?? false);
-    }
-    const label = taskStatusLabel(task);
-    if (activeFilter === 'All') return true;
-    if (activeFilter === 'To do') return label === 'To-do';
-    if (activeFilter === 'In Progress') return label === 'In Progress';
-    if (activeFilter === 'Completed') return label === 'Done';
-    return true;
-  });
+  const selectedDateIso = toIsoDate(selectedDate);
+  const filteredTasks = tasks
+    .filter(task => {
+      // When searching, ignore the day + filter chip and search across every task.
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return task.title.toLowerCase().includes(query) ||
+               (task.description?.toLowerCase().includes(query) ?? false);
+      }
+      // Only show tasks whose due date matches the day chosen on the strip.
+      if (task.dueDate?.slice(0, 10) !== selectedDateIso) return false;
+      const label = taskStatusLabel(task);
+      if (activeFilter === 'All') return true;
+      if (activeFilter === 'To do') return label === 'To-do';
+      if (activeFilter === 'In Progress') return label === 'In Progress';
+      if (activeFilter === 'Completed') return label === 'Done';
+      return true;
+    })
+    .sort((a, b) => {
+      // Earliest due date first; tasks without a date sink to the bottom.
+      const aKey = a.dueDate ?? '￿';
+      const bKey = b.dueDate ?? '￿';
+      return aKey.localeCompare(bKey);
+    });
 
   const headerLabel = isSameDay(selectedDate, today)
     ? "Today's Tasks"

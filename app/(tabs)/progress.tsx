@@ -26,7 +26,7 @@ import type { Task } from '@/types/task';
 import type { Category } from '@/types/category';
 import { plannerApi } from '@/services/api/planner';
 import { CircularProgress } from '@/components/circular-progress';
-import { WeeklyBarChart, type ProgressTab } from '@/components/weekly-bar-chart';
+import { WeeklyBarChart } from '@/components/weekly-bar-chart';
 
 const { width } = Dimensions.get('window');
 
@@ -35,22 +35,6 @@ export default function ProgressScreen() {
   const { user, sessionSticker, rotateSticker } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-
-  const TabButton = ({ title, isActive, onPress }: {
-    title: string;
-    isActive: boolean;
-    onPress: () => void;
-  }) => (
-    <TouchableOpacity
-      style={[styles.tabButton, isActive && styles.tabButtonActive]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <Text style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}>
-        {title}
-      </Text>
-    </TouchableOpacity>
-  );
 
   const AchievementCard = ({ icon, title, description, color }: {
     icon: keyof typeof Ionicons.glyphMap;
@@ -69,10 +53,8 @@ export default function ProgressScreen() {
     </View>
   );
 
-  const [selectedTab, setSelectedTab] = useState<ProgressTab>('Weekly');
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [todayTotals, setTodayTotals] = useState<{ completed: number; total: number }>({ completed: 0, total: 0 });
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,31 +84,28 @@ export default function ProgressScreen() {
       return `${yyyy}-${mm}-${dd}`;
     };
 
-    const [p, t, c, todayPlan] = await Promise.all([
-  progressApi.get().catch(() => null),
-  tasksApi.getCompleted().catch(() => []),
-  categoriesApi.getAll().catch(() => []),
-  plannerApi.getDaily(toIsoDate(today)).catch(() => ({ date: '', tasks: [] })),
-]);
+    const [p, completed, active, c, todayPlan] = await Promise.all([
+      progressApi.get().catch(() => null),
+      tasksApi.getCompleted().catch(() => []),
+      tasksApi.getActive().catch(() => []),
+      categoriesApi.getAll().catch(() => []),
+      plannerApi.getDaily(toIsoDate(today)).catch(() => ({ date: '', tasks: [] })),
+    ]);
 
-    // Merge today's planner tasks into completed list
-    const todayCompleted = todayPlan.tasks.filter(t => t.status === 'completed');
-    
-    // Combine: use a Map to avoid duplicates, planner data takes priority for today
+    // Merge active + completed + today's planner so we have a single source of
+    // truth for both the chart (uses completed dates) and the today calc.
     const taskMap = new Map<string, Task>();
-    t.forEach(task => taskMap.set(task.id, task));
-    todayCompleted.forEach(task => taskMap.set(task.id, {
-      ...task,
-      // Ensure completedAt is set so daily chart can filter correctly
-      completedAt: task.completedAt ?? new Date().toISOString(),
-    }));
+    completed.forEach(task => taskMap.set(task.id, task));
+    active.forEach(task => taskMap.set(task.id, task));
+    todayPlan.tasks
+      .filter(t => t.status === 'completed')
+      .forEach(task => taskMap.set(task.id, {
+        ...task,
+        completedAt: task.completedAt ?? new Date().toISOString(),
+      }));
 
     setProgress(p);
     setTasks(Array.from(taskMap.values()));
-    setTodayTotals({
-      completed: todayPlan.tasks.filter(t => t.status === 'completed').length,
-      total: todayPlan.tasks.length,
-    });
     setCategories(c);
 
     if (isRefresh) {
@@ -150,13 +129,24 @@ export default function ProgressScreen() {
     ]).start();
   }, [headerOpacity, headerScale]);
 
-  // Today's completion rate, computed from today's planner data so the circle
-  // matches what the chart shows. Falls back to the backend's all-time rate
-  // only when there are no scheduled tasks today.
-  const completionRate = todayTotals.total > 0
-    ? Math.round((todayTotals.completed / todayTotals.total) * 100)
+  // Today's completion rate — derive from the loaded tasks list filtered by
+  // today's due date so it matches the Tasks dashboard exactly. Falls back to
+  // the backend's all-time rate only when nothing is due today.
+  const todayDerived = useMemo(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayIso = `${yyyy}-${mm}-${dd}`;
+    const todayTasks = tasks.filter(t => t.dueDate?.slice(0, 10) === todayIso);
+    const completed = todayTasks.filter(t => t.status === 'completed').length;
+    return { completed, total: todayTasks.length };
+  }, [tasks]);
+
+  const completionRate = todayDerived.total > 0
+    ? Math.round((todayDerived.completed / todayDerived.total) * 100)
     : (progress?.completionRate ?? 0);
-  const almostDone = todayTotals.total > 0 && completionRate >= 70;
+  const almostDone = todayDerived.total > 0 && completionRate >= 70;
 
   // ── Achievements (derived from tasks + categories, no persistence) ──
   const completedTasks = tasks.filter(t => t.status === 'completed');
@@ -286,7 +276,7 @@ export default function ProgressScreen() {
             <View style={styles.todayLeft}>
               <Text style={styles.todaySubtitle}>Today&apos;s Progress</Text>
               <Text style={styles.todayTitle}>
-                {todayTotals.total === 0
+                {todayDerived.total === 0
                   ? 'No tasks today'
                   : almostDone
                     ? 'Almost Done!'
@@ -318,23 +308,10 @@ export default function ProgressScreen() {
             resizeMode="contain"
           />
 
-          <Text style={styles.sectionTitle}>Progress Overview</Text>
-          
-          <View style={styles.tabContainer}>
-            <TabButton
-              title="Weekly"
-              isActive={selectedTab === 'Weekly'}
-              onPress={() => setSelectedTab('Weekly')}
-            />
-            <TabButton
-              title="Monthly"
-              isActive={selectedTab === 'Monthly'}
-              onPress={() => setSelectedTab('Monthly')}
-            />
-          </View>
+          <Text style={styles.sectionTitle}>Monthly Progress</Text>
 
-          <Text style={styles.sectionSubtitle}>This Completed Tasks</Text>
-          <WeeklyBarChart tasks={tasks} selectedTab={selectedTab} />
+          <Text style={styles.sectionSubtitle}>Completed Tasks This Month</Text>
+          <WeeklyBarChart tasks={tasks} selectedTab="Monthly" />
 
           <Text style={styles.sectionTitle}>Achievements</Text>
           

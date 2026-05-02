@@ -373,18 +373,27 @@ const TaskDashboard: React.FC = () => {
     [tasks],
   );
 
-  const upcomingTasks = useMemo(
-    () => tasks
-      .filter((t) => t.status === 'pending')
+  const upcomingTasks = useMemo(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayIso = `${yyyy}-${mm}-${dd}`;
+    return tasks
+      .filter((t) => {
+        if (t.status !== 'pending') return false;
+        // Only show today or future tasks; overdue tasks belong elsewhere.
+        if (!t.dueDate) return true;
+        return t.dueDate.slice(0, 10) >= todayIso;
+      })
       .sort((a, b) => {
-        // Earliest due date first; tasks without a due date sink to the bottom
+        // Earliest due date first; tasks without a due date sink to the bottom.
         const aKey = a.dueDate ? a.dueDate.slice(0, 10) : '￿';
         const bKey = b.dueDate ? b.dueDate.slice(0, 10) : '￿';
         return aKey.localeCompare(bKey);
       })
-      .slice(0, 6),
-    [tasks],
-  );
+      .slice(0, 6);
+  }, [tasks]);
 
   const doneTasks = useMemo(
     () => tasks.filter(t => t.status === 'completed').slice(0, 10),
