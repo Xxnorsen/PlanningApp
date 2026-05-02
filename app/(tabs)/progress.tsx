@@ -322,11 +322,6 @@ export default function ProgressScreen() {
           
           <View style={styles.tabContainer}>
             <TabButton
-              title="Daily"
-              isActive={selectedTab === 'Daily'}
-              onPress={() => setSelectedTab('Daily')}
-            />
-            <TabButton
               title="Weekly"
               isActive={selectedTab === 'Weekly'}
               onPress={() => setSelectedTab('Weekly')}

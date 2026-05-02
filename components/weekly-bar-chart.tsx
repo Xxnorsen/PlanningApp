@@ -7,7 +7,7 @@ import { FontFamily } from '@/constants/fonts';
 import { useTheme } from '@/context/theme-context';
 import type { Task } from '@/types/task';
 
-export type ProgressTab = 'Daily' | 'Weekly' | 'Monthly';
+export type ProgressTab = 'Weekly' | 'Monthly';
 
 interface Props {
   tasks: Task[];
@@ -30,36 +30,6 @@ function resolveTaskDate(task: Task): Date | null {
   return null;
 }
 
-function getDailyData(tasks: Task[]): BarDatum[] {
-  const today = new Date();
-
-  const blocks = [
-    { start: 0,  end: 2,  label: '12AM' },
-    { start: 3,  end: 5,  label: '3AM'  },
-    { start: 6,  end: 8,  label: '6AM'  },
-    { start: 9,  end: 11, label: '9AM'  },
-    { start: 12, end: 14, label: '12PM' },
-    { start: 15, end: 17, label: '3PM'  },
-    { start: 18, end: 20, label: '6PM'  },
-    { start: 21, end: 23, label: '9PM'  },
-  ];
-
-  return blocks.map(block => {
-    const count = tasks.filter(task => {
-      if (task.status !== 'completed') return false;
-      const d = resolveTaskDate(task);
-      if (!d) return false;
-      return (
-        d.getFullYear() === today.getFullYear() &&
-        d.getMonth()    === today.getMonth()    &&
-        d.getDate()     === today.getDate()     &&
-        d.getHours()    >= block.start          &&
-        d.getHours()    <= block.end
-      );
-    }).length;
-    return { day: block.label, value: count };
-  });
-}
 
 function getWeeklyData(tasks: Task[]): BarDatum[] {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -115,12 +85,7 @@ export function WeeklyBarChart({ tasks, selectedTab }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const data =
-    selectedTab === 'Daily'
-      ? getDailyData(tasks)
-      : selectedTab === 'Monthly'
-        ? getMonthlyData(tasks)
-        : getWeeklyData(tasks);
+  const data = selectedTab === 'Monthly' ? getMonthlyData(tasks) : getWeeklyData(tasks);
 
   const maxValue = Math.max(...data.map(d => d.value), 1);
   const hasAnyData = data.some(item => item.value > 0);
