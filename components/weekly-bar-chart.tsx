@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '@/constants/colors';
@@ -84,6 +84,7 @@ function getMonthlyData(tasks: Task[]): BarDatum[] {
 export function WeeklyBarChart({ tasks, selectedTab }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const data = selectedTab === 'Monthly' ? getMonthlyData(tasks) : getWeeklyData(tasks);
 
@@ -113,11 +114,24 @@ export function WeeklyBarChart({ tasks, selectedTab }: Props) {
             : item.value === maxValue
               ? colors.LIME
               : '#E8F9EE';
+          const isActive = activeIndex === index;
           return (
-            <View key={index} style={styles.barContainer}>
+            <TouchableOpacity
+              key={index}
+              style={styles.barContainer}
+              activeOpacity={0.7}
+              onPress={() => setActiveIndex(isActive ? null : index)}
+            >
+              {isActive ? (
+                <View style={styles.tooltip}>
+                  <Text style={styles.tooltipText}>
+                    {item.value} {item.value === 1 ? 'task' : 'tasks'}
+                  </Text>
+                </View>
+              ) : null}
               <View style={[styles.bar, { height: barHeight, backgroundColor: barColor }]} />
               <Text style={styles.day}>{item.day}</Text>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -149,6 +163,20 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 10,
     color: colors.MUTED_ON_CARD,
     fontFamily: FontFamily.REGULAR,
+  },
+  tooltip: {
+    position: 'absolute',
+    top: -8,
+    backgroundColor: colors.ACCENT,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    zIndex: 10,
+  },
+  tooltipText: {
+    fontFamily: FontFamily.BOLD,
+    fontSize: 11,
+    color: colors.WHITE_TEXT,
   },
   empty: {
     alignItems: 'center',
