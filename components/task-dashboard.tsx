@@ -278,7 +278,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ name, color, icon, taskCount,
 const TaskDashboard: React.FC = () => {
   const router = useRouter();
   const { user, logout, sessionSticker, rotateSticker } = useAuth();
-  const { tasks, fetchAll, toggleComplete, setInProgress } = useTasks();
+  const { tasks, fetchAll, toggleComplete, setInProgress, deleteTask } = useTasks();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -303,6 +303,14 @@ const TaskDashboard: React.FC = () => {
   const handleStartInProgress = async (task: Task) => {
     try {
       await setInProgress(task, true);
+    } catch (e) {
+      showApiErrorAlert(e);
+    }
+  };
+
+  const handleDeleteTask = async (task: Task) => {
+    try {
+      await deleteTask(task.id);
     } catch (e) {
       showApiErrorAlert(e);
     }
@@ -396,7 +404,18 @@ const TaskDashboard: React.FC = () => {
   }, [tasks]);
 
   const doneTasks = useMemo(
-    () => tasks.filter(t => t.status === 'completed').slice(0, 10),
+    () => tasks
+      .filter(t => t.status === 'completed')
+      .sort((a, b) => {
+        // Most recently completed first. Use numeric timestamps so the sort
+        // is reliable across timezones / formats.
+        const aTime = new Date(a.completedAt ?? a.updatedAt ?? a.createdAt ?? 0).getTime();
+        const bTime = new Date(b.completedAt ?? b.updatedAt ?? b.createdAt ?? 0).getTime();
+        if (bTime !== aTime) return bTime - aTime;
+        // Tie-break by id descending — newer auto-increment ids first.
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      })
+      .slice(0, 10),
     [tasks]
   );
 
@@ -879,8 +898,16 @@ const TaskDashboard: React.FC = () => {
                       onPress={() => handleToggleDone(task)}
                       hitSlop={8}
                       activeOpacity={0.7}
+                      style={{ marginRight: 12 }}
                     >
                       <Ionicons name="arrow-undo-outline" size={16} color={colors.MUTED_ON_CARD} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteTask(task)}
+                      hitSlop={8}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#FF4757" />
                     </TouchableOpacity>
                   </View>
                 ))}
