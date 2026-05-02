@@ -16,6 +16,20 @@ interface Props {
 
 type BarDatum = { day: string; value: number };
 
+// Returns the best available date for when a task was completed.
+// Priority: completedAt > dueDate (parsed as local date) > updatedAt.
+// dueDate is preferred over updatedAt because updatedAt can reflect
+// today's sync/fetch time rather than the actual completion day.
+function resolveTaskDate(task: Task): Date | null {
+  if (task.completedAt) return new Date(task.completedAt);
+  if (task.dueDate) {
+    const [y, m, d] = task.dueDate.slice(0, 10).split('-').map(Number);
+    if (y && m && d) return new Date(y, m - 1, d);
+  }
+  if (task.updatedAt) return new Date(task.updatedAt);
+  return null;
+}
+
 function getDailyData(tasks: Task[]): BarDatum[] {
   const today = new Date();
 
@@ -33,9 +47,8 @@ function getDailyData(tasks: Task[]): BarDatum[] {
   return blocks.map(block => {
     const count = tasks.filter(task => {
       if (task.status !== 'completed') return false;
-      const ref = task.completedAt ?? task.updatedAt;
-      if (!ref) return false;
-      const d = new Date(ref);
+      const d = resolveTaskDate(task);
+      if (!d) return false;
       return (
         d.getFullYear() === today.getFullYear() &&
         d.getMonth()    === today.getMonth()    &&
@@ -63,9 +76,8 @@ function getWeeklyData(tasks: Task[]): BarDatum[] {
 
     const count = tasks.filter(task => {
       if (task.status !== 'completed') return false;
-      const ref = task.completedAt ?? task.updatedAt;
-      if (!ref) return false;
-      const d = new Date(ref);
+      const d = resolveTaskDate(task);
+      if (!d) return false;
       return d >= start && d < end;
     }).length;
 
@@ -88,9 +100,8 @@ function getMonthlyData(tasks: Task[]): BarDatum[] {
 
     const count = tasks.filter(task => {
       if (task.status !== 'completed') return false;
-      const ref = task.completedAt ?? task.updatedAt;
-      if (!ref) return false;
-      const d = new Date(ref);
+      const d = resolveTaskDate(task);
+      if (!d) return false;
       return d >= start && d < end;
     }).length;
 
