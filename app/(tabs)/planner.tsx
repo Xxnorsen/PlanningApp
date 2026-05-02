@@ -88,37 +88,43 @@ export default function PlannerScreen() {
   const [celebrating, setCelebrating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Day view uses /planner/daily. The "Completed" filter is day-agnostic
-  // (backend has no completed_at timestamp to group by), so it pulls from
-  // /tasks/completed/ directly.
- const load = useCallback(async (date: Date, _filter: Filter, isRefresh = false) => {
-  if (isRefresh) setRefreshing(true); else setLoading(true);
-  setError('');
-  try {
-    // Always fetch active + completed + day planner so search can find any task
-    // regardless of the active filter chip. Filter is applied client-side.
-    const [active, completed, plan] = await Promise.all([
-      tasksApi.getActive(),
-      tasksApi.getCompleted(),
-      plannerApi.getDaily(toIsoDate(date)),
-    ]);
-    const merged = new Map<string, Task>();
-    active.forEach(t => merged.set(t.id, t));
-    completed.forEach(t => merged.set(t.id, t));
-    plan.tasks.forEach(t => merged.set(t.id, t));
-    setTasks(Array.from(merged.values()));
-  } catch (e) {
-    const err = toApiError(e);
-    setError(err.message);
-    if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
-      showApiErrorAlert(err);
+  // True once the first successful load completes; suppresses the full loading
+  // overlay on subsequent date-change reloads (filteredTasks updates instantly).
+  const hasTasksRef = React.useRef(false);
+
+  const load = useCallback(async (date: Date, _filter: Filter, isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else if (!hasTasksRef.current) {
+      // Only show the full loading overlay on the very first fetch.
+      setLoading(true);
     }
-    setTasks([]);
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-}, []);
+    setError('');
+    try {
+      const [active, completed, plan] = await Promise.all([
+        tasksApi.getActive(),
+        tasksApi.getCompleted(),
+        plannerApi.getDaily(toIsoDate(date)),
+      ]);
+      const merged = new Map<string, Task>();
+      active.forEach(t => merged.set(t.id, t));
+      completed.forEach(t => merged.set(t.id, t));
+      plan.tasks.forEach(t => merged.set(t.id, t));
+      setTasks(Array.from(merged.values()));
+      hasTasksRef.current = true;
+    } catch (e) {
+      const err = toApiError(e);
+      setError(err.message);
+      if (err.code === 'NETWORK' || err.code === 'SERVER_ERROR' || err.code === 'TIMEOUT') {
+        showApiErrorAlert(err);
+      }
+      setTasks([]);
+      hasTasksRef.current = false;
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchCategories().catch(() => {});
@@ -191,13 +197,15 @@ export default function PlannerScreen() {
   }, [categories]);
 
   const filteredTasks = tasks.filter(task => {
-    // When searching, ignore the active filter chip — search across every task
-    // (active + completed) so users can find anything by name/description.
+    // When searching, ignore date and filter chip — search all loaded tasks.
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       return task.title.toLowerCase().includes(query) ||
              (task.description?.toLowerCase().includes(query) ?? false);
     }
+    // Only show tasks whose dueDate matches the selected day.
+    if (task.dueDate !== toIsoDate(selectedDate)) return false;
+
     const label = taskStatusLabel(task);
     if (activeFilter === 'All') return true;
     if (activeFilter === 'To do') return label === 'To-do';

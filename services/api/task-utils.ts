@@ -21,7 +21,7 @@ export function normalizeTaskRaw(raw: any): Task {
     status: isCompleted ? 'completed' : 'pending',
     priority: raw.priority ?? 'medium',
     categoryId: raw.category_id != null ? String(raw.category_id) : undefined,
-    dueDate: raw.due_date ?? undefined,
+    dueDate: raw.due_date ? String(raw.due_date).slice(0, 10) : undefined,
     completedAt: raw.completed_at ?? undefined,
     createdAt: raw.created_at ?? new Date().toISOString(),
     updatedAt: raw.updated_at ?? new Date().toISOString(),
