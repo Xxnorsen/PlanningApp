@@ -201,7 +201,7 @@ export default function AddTaskScreen() {
                     <Calendar
                       onDayPress={onDaySelect}
                       markedDates={dueDate ? {
-                        [dueDate.toISOString().split('T')[0]]: { selected: true, selectedColor: colors.ACCENT },
+                        [toYmd(dueDate)]: { selected: true, selectedColor: colors.ACCENT },
                       } : {}}
                       theme={{
                         backgroundColor: colors.CARD,
