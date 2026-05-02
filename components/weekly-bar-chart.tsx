@@ -18,62 +18,58 @@ type BarDatum = { day: string; value: number };
 
 function getDailyData(tasks: Task[]): BarDatum[] {
   const today = new Date();
-  const currentHour = today.getHours();
 
   const blocks = [
     { start: 0,  end: 2,  label: '12AM' },
     { start: 3,  end: 5,  label: '3AM'  },
     { start: 6,  end: 8,  label: '6AM'  },
-    { start: 9,  end: 11, label: '9AM' },
+    { start: 9,  end: 11, label: '9AM'  },
     { start: 12, end: 14, label: '12PM' },
     { start: 15, end: 17, label: '3PM'  },
     { start: 18, end: 20, label: '6PM'  },
-    { start: 21, end: 23, label: '9PM' },
+    { start: 21, end: 23, label: '9PM'  },
   ];
 
-  const todayCompleted = tasks.filter(task => {
-    if (task.status !== 'completed') return false;
-    const ref = task.completedAt ?? task.dueDate;
-    if (!ref) return false;
-    const d = new Date(ref);
-    return (
-      d.getFullYear() === today.getFullYear() &&
-      d.getMonth() === today.getMonth() &&
-      d.getDate() === today.getDate()
-    );
-  });
-
-  const currentBlockIndex = blocks.findIndex(
-    b => currentHour >= b.start && currentHour <= b.end
-  );
-
-  return blocks.map((block, index) => {
-    const isCurrentBlock = index === currentBlockIndex;
-    const value = isCurrentBlock
-      ? Math.min(100, (todayCompleted.length / 3) * 100)
-      : 0;
-    return { day: block.label, value };
+  return blocks.map(block => {
+    const count = tasks.filter(task => {
+      if (task.status !== 'completed') return false;
+      const ref = task.completedAt ?? task.updatedAt;
+      if (!ref) return false;
+      const d = new Date(ref);
+      return (
+        d.getFullYear() === today.getFullYear() &&
+        d.getMonth()    === today.getMonth()    &&
+        d.getDate()     === today.getDate()     &&
+        d.getHours()    >= block.start          &&
+        d.getHours()    <= block.end
+      );
+    }).length;
+    return { day: block.label, value: count };
   });
 }
 
 function getWeeklyData(tasks: Task[]): BarDatum[] {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay());
 
   return days.map((day, index) => {
-    const targetDate = new Date(today);
-    targetDate.setDate(today.getDate() - today.getDay() + index);
+    const start = new Date(weekStart);
+    start.setDate(weekStart.getDate() + index);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 1);
 
-    const dayTasks = tasks.filter(task => {
+    const count = tasks.filter(task => {
       if (task.status !== 'completed') return false;
-      if (task.completedAt) {
-        return new Date(task.completedAt).toDateString() === targetDate.toDateString();
-      }
-      return new Date(task.updatedAt).toDateString() === targetDate.toDateString();
-    });
+      const ref = task.completedAt ?? task.updatedAt;
+      if (!ref) return false;
+      const d = new Date(ref);
+      return d >= start && d < end;
+    }).length;
 
-    const completionRate = Math.min(100, (dayTasks.length / 10) * 100);
-    return { day: day.slice(0, 3), value: completionRate };
+    return { day, value: count };
   });
 }
 
@@ -87,22 +83,18 @@ function getMonthlyData(tasks: Task[]): BarDatum[] {
   for (let week = 0; week < 4; week++) {
     const startDay = week * 7 + 1;
     const endDay = Math.min(startDay + 6, daysInMonth);
+    const start = new Date(year, month, startDay);
+    const end = new Date(year, month, endDay + 1);
 
-    const weekTasks = tasks.filter(task => {
+    const count = tasks.filter(task => {
       if (task.status !== 'completed') return false;
-      const ref = task.completedAt ? new Date(task.completedAt) : new Date(task.updatedAt);
-      return (
-        ref.getFullYear() === year &&
-        ref.getMonth() === month &&
-        ref.getDate() >= startDay &&
-        ref.getDate() <= endDay
-      );
-    });
+      const ref = task.completedAt ?? task.updatedAt;
+      if (!ref) return false;
+      const d = new Date(ref);
+      return d >= start && d < end;
+    }).length;
 
-    weeks.push({
-      day: `W${week + 1}`,
-      value: Math.min(100, (weekTasks.length / 20) * 100),
-    });
+    weeks.push({ day: `W${week + 1}`, value: count });
   }
 
   return weeks;
@@ -120,9 +112,9 @@ export function WeeklyBarChart({ tasks, selectedTab }: Props) {
         : getWeeklyData(tasks);
 
   const maxValue = Math.max(...data.map(d => d.value), 1);
-  const hasProgress = data.some(item => item.value > 0);
+  const hasAnyData = data.some(item => item.value > 0);
 
-  if (!hasProgress) {
+  if (!hasAnyData) {
     return (
       <View style={styles.empty}>
         <Ionicons name="bar-chart-outline" size={48} color={colors.INPUT_BORDER} />
@@ -136,20 +128,22 @@ export function WeeklyBarChart({ tasks, selectedTab }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.bars}>
-        {data.map((item, index) => (
-          <View key={index} style={styles.barContainer}>
-            <View
-              style={[
-                styles.bar,
-                {
-                  height: (item.value / maxValue) * 100,
-                  backgroundColor: item.value > 70 ? colors.LIME : '#E8F9EE',
-                },
-              ]}
-            />
-            <Text style={styles.day}>{item.day}</Text>
-          </View>
-        ))}
+        {data.map((item, index) => {
+          const barHeight = item.value === 0
+            ? 4
+            : Math.max(8, (item.value / maxValue) * 100);
+          const barColor = item.value === 0
+            ? colors.INPUT_BORDER
+            : item.value === maxValue
+              ? colors.LIME
+              : '#E8F9EE';
+          return (
+            <View key={index} style={styles.barContainer}>
+              <View style={[styles.bar, { height: barHeight, backgroundColor: barColor }]} />
+              <Text style={styles.day}>{item.day}</Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
